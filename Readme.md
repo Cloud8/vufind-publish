@@ -1,7 +1,7 @@
 
 ## A VuFind Publishing module
 
-### Configure Publishing module for VuFind
+### Configure 
 
     mv module/Dpub $VUFIND_HOME/module
     mv themes/dpub $VUFIND_HOME/themes
