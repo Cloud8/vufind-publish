@@ -262,7 +262,7 @@ class MetaForm extends Form
                  . "Autor: " . $data['dcterms:creator0'] .PHP_EOL
                  . "Email: " . $data['opus:email'] .PHP_EOL
 		         // . "IP: " . $_SERVER['REMOTE_ADDR'] .PHP_EOL
-		         . "\nwurde in OPUS eingebracht.\n";
+		         . "\nwurde in das Publikationssystem eingebracht.\n";
         $mail = new Mail\Message();
         $mail->setEncoding('utf-8');
         $mail->setFrom($this->mailfrom, "Admin Archiv");

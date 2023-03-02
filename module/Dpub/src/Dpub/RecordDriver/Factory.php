@@ -38,32 +38,6 @@ use Laminas\ServiceManager\ServiceManager;
 class Factory
 {
     /**
-     * Factory for SolrOpus record driver.
-     *
-     * @param ServiceManager $sm Service manager.
-     *
-     * @return Opus
-     */
-    public static function getSolrOpus(ServiceManager $sm)
-    {
-        $driver = new SolrView(
-               $sm->get('VuFind\Config\PluginManager')->get('config'),
-               $sm->get('VuFind\Config\PluginManager')->get('Dpub'),
-               $sm->get('VuFind\Config\PluginManager')->get('searches'),
-               $sm->get('VuFind\DbAdapterFactory')
-        );
-        // $driver->attachSearchService($sm->get('VuFindSearch\Service'));
-        // GH2022-10
-        // $driver->attachILS(
-        //     $sm->get('VuFind\ILS\Connection'),
-        //     $sm->get('VuFind\ILS\Logic\Holds'),
-        //     $sm->get('VuFind\ILS\Logic\TitleHolds')
-        // );
-        // $driver->setIlsBackends(['Solr']);
-        return $driver;
-    }
-
-    /**
      * Factory for SolrDpub record driver.
      *
      * @param ServiceManager $sm Service manager.
@@ -78,50 +52,6 @@ class Factory
                $sm->get('VuFind\Config\PluginManager')->get('Dpub'),
                $sm->get('VuFind\Config\PluginManager')->get('searches'),
                $sm->get('VuFind\DbAdapterFactory')
-        );
-        return $driver;
-    }
-
-    /**
-     * Factory for SolrOpac record driver.
-     *
-     * @param ServiceManager $sm Service manager.
-     *
-     * @return SolrBox
-     */
-    public static function getSolrOpac(ServiceManager $sm)
-    {
-        $driver = new \Dpub\RecordDriver\SolrOpac(
-            $sm->get('VuFind\Config\PluginManager')->get('config'),
-            null,
-            $sm->get('VuFind\Config\PluginManager')->get('searches')
-        );
-        $driver->attachILS(
-            $sm->get('VuFind\ILS\Connection'),
-            $sm->get('VuFind\ILS\Logic\Holds'),
-            $sm->get('VuFind\ILS\Logic\TitleHolds')
-        );
-        $driver->setIlsBackends(['Solr']);
-        return $driver;
-    }
-
-    /**
-     * Factory for WorldCat record driver.
-     *
-     * @param ServiceManager $sm Service manager.
-     *
-     * @return WorldCat
-     */
-    public static function getWorldCat(ServiceManager $sm)
-    {
-        $wc = $sm->get('VuFind\Config\PluginManager')->get('WorldCat');
-        $driver = new WorldCat(
-            $sm->get('VuFind\Config\PluginManager')->get('config'), $wc, $wc
-        );
-        $driver->attachILS(
-            $sm->get('VuFind\ILS\Connection'),
-            $sm->get('VuFind\ILS\Logic\Holds'),
-            $sm->get('VuFind\ILS\Logic\TitleHolds')
         );
         return $driver;
     }

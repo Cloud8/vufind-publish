@@ -78,7 +78,7 @@ class SolrView extends SolrDpub
             // find content streaming path
             $img = trim($this->fields['thumbnail']);
             if (ctype_upper(substr($img,0,1)) || substr($img,0,7)=='file://') {
-                $url = $_SERVER['CONTEXT_PREFIX'] . '/Opus/View?q='.$img;
+                $url = $_SERVER['CONTEXT_PREFIX'] . '/Dpub/View?q='.$img;
             } else { // dev should have a copy : shortcut link
                 $x = strlen($img)>8 ? strpos($img,'/',8) : 0;
                 if (file_exists($_SERVER['DOCUMENT_ROOT'].substr($img,$x))) {

@@ -108,7 +108,9 @@ class DpubIndex {
                         if (str_ends_with($this->base, $sub)) {
                             $url = 'file://'.$this->base;
                             $url = substr($url,0,strpos($url,$sub)-1);
-                            // error_log('url ['.$url.'] [val ['.$val.']');
+                            error_log('url ['.$url.'] [val ['.$val.']');
+                        } else {
+                            error_log('No match ['.$url.'] [val ['.$val.']');
                         }
                     } else if ($key=='url' && !empty($url)) {
                         $val=$url;
