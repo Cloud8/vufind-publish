@@ -27,7 +27,7 @@
 
 ### Publishing
 
-  - Use Upload form to send a document
+  - Use Dpub/Upload form to send a document
 
   - Use Dpub/Admin / see themes/dpub/templates/myresearch/menu.phtml
     as a user with AdminModule permission
