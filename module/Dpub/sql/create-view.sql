@@ -8,14 +8,17 @@ create or replace view opus_citations as
             and p2.oid = r.oid
   ;
 
+delete from university;
 insert into university 
    values (1, 'Test', 'Zero', 'Cut', null, null, null, null)
   ;
   
+delete from opus_domain;
 insert into opus_domain 
-   values (1, 'Minipub', '/srv/archiv', '/adm/pub/opus', 
-           'https://minipub.org', null, null, 1)
+   values (1, 'Dpub', '/srv/archiv', '/adm/pub/opus', 'http://localhost', null, null, 1)
   ;
 
+delete from faculty;
 insert into faculty values(10, 'Ministry of Sound', 780);
+delete from institute;
 insert into institute values(1001, 'Department of Music', 10);

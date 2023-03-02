@@ -623,11 +623,24 @@
     <xsl:apply-templates select="dctypes:Collection"/>
 </xsl:template>
 
-<xsl:template match="dcterms:hasPart/dctypes:Text|dcterms:hasPart/dctypes:MovingImage">
+<!-- data.zip -->
+<xsl:template match="dcterms:hasPart/dctypes:Dataset">
+    <field name="format"><xsl:value-of select="'Dataset'"/></field>
     <xsl:apply-templates select="@rdf:about"/>
 </xsl:template>
 
-<xsl:template match="dcterms:hasPart/dctypes:Text/@rdf:about|dcterms:hasPart/dctypes:MovingImage/@rdf:about">
+<!-- image sequence : manifest requires first link only -->
+<xsl:template match="dcterms:hasPart/rdf:Seq/rdf:li[1]/dctypes:Image">
+    <field name="url">
+        <xsl:value-of select="substring-after(@rdf:about,':')"/>
+    </field>
+</xsl:template>
+
+<xsl:template match="dcterms:hasPart/dctypes:Text|dcterms:hasPart/dctypes:MovingImage|dcterms:hasPart/dctypes:Image">
+    <xsl:apply-templates select="@rdf:about"/>
+</xsl:template>
+
+<xsl:template match="dcterms:hasPart/dctypes:*/@rdf:about">
     <xsl:choose>
         <xsl:when test="substring(., string-length(.)-3)='.xml'">
             <field name="url">
@@ -659,36 +672,6 @@
 <!-- dpub:manuscript signatur -->
 <xsl:template match="dcterms:isVersionOf">
     <field name="ctrlnum"><xsl:value-of select="."/></field>
-</xsl:template>
-
-<!-- container.zip -->
-<!--
-<xsl:template match="dcterms:hasPart/dctypes:Collection">
-    <field name="url">
-        <xsl:value-of select="substring-after(@rdf:about,':')"/>
-    </field>
-</xsl:template>
--->
-
-<!-- data.zip -->
-<xsl:template match="dcterms:hasPart/dctypes:Dataset">
-    <field name="url">
-        <xsl:value-of select="substring-after(@rdf:about,':')"/>
-    </field>
-    <field name="format"><xsl:value-of select="'Dataset'"/></field>
-</xsl:template>
-
-<xsl:template match="dcterms:hasPart/dctypes:Image">
-    <field name="url">
-        <xsl:value-of select="substring-after(@rdf:about,':')"/>
-    </field>
-</xsl:template>
-
-<!-- image sequence : manifest requires first link only -->
-<xsl:template match="dcterms:hasPart/rdf:Seq/rdf:li[1]/dctypes:Image">
-    <field name="url">
-        <xsl:value-of select="substring-after(@rdf:about,':')"/>
-    </field>
 </xsl:template>
 
 <!-- LICENSE : core extension -->
