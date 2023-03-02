@@ -1,0 +1,27 @@
+<?php
+    // Set page title.
+    $this->headTitle($this->translate('Description') . ': ' . $this->driver->getBreadcrumb());
+
+    $formatter = $this->recordDataFormatter();
+    $defaults = $formatter->getDefaults('description');
+    // var_dump($defaults);
+    // foreach($defaults as $default) {
+    //     error_log($default['renderType']);
+    // }
+    $defaults['Item Description']['renderType'] = 'RecordDriverTemplate';
+    $defaults['Item Description']['template'] = 'general-notes';
+    // renders templates/RecordDriver/SolrOpus/general-notes.phtml
+    // var_dump($defaults['Item Description']);
+    // $mainFields = $formatter->getData($driver, $formatter->getDefaults('description'));
+    $mainFields = $formatter->getData($driver, $defaults);
+?>
+<table class="table table-striped">
+  <caption class="sr-only"><?=$this->transEsc('Description')?></caption>
+  <?php if (!empty($mainFields)): ?>
+    <?php foreach ($mainFields as $current): ?>
+      <tr><th><?=$this->transEsc($current['label'])?>:</th><td><?=$current['value']?></td></tr>
+    <?php endforeach; ?>
+  <?php else: ?>
+    <tr><td><?=$this->transEsc('no_description')?></td></tr>
+  <?php endif; ?>
+</table>
