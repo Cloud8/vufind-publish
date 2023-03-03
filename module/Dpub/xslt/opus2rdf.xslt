@@ -479,7 +479,7 @@
 <xsl:template match="field[@name='publisher_faculty']">
  <xsl:if test="normalize-space(../field[@name='faculty_name'])!=''">
  <dcterms:contributor>
-     <aiiso:Faculty rdf:about="{concat($graph},'/aut/',.)}">
+     <aiiso:Faculty rdf:about="{concat($graph,'/aut/',.)}">
      <foaf:name>
        <xsl:value-of select="normalize-space(../field[@name='faculty_name'])"/>
      </foaf:name>
