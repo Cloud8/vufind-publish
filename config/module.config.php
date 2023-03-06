@@ -1,73 +1,73 @@
 <?php
-namespace Dpub\Module\Configuration;
+namespace Dbib\Module\Configuration;
 
 $config = [
     'controllers' => [
         'factories' => [
-            'Dpub\Controller\DpubController' => 'VuFind\Controller\CartControllerFactory',
-            //'Dpub\Controller\DokliefController' => 'VuFind\Controller\CartControllerFactory',
-            //'Dpub\Controller\RecordController' => 'VuFind\Controller\AbstractBaseWithConfigFactory',
-            //'Dpub\Controller\OaiController' => 'VuFind\Controller\AbstractBaseFactory',
-            //'Dpub\Controller\ViewController' => 'VuFind\Controller\AbstractBaseFactory',
+            'Dbib\Controller\DbibController' => 'VuFind\Controller\CartControllerFactory',
+            //'Dbib\Controller\DokliefController' => 'VuFind\Controller\CartControllerFactory',
+            //'Dbib\Controller\RecordController' => 'VuFind\Controller\AbstractBaseWithConfigFactory',
+            //'Dbib\Controller\OaiController' => 'VuFind\Controller\AbstractBaseFactory',
+            //'Dbib\Controller\ViewController' => 'VuFind\Controller\AbstractBaseFactory',
         ],
         'aliases' => [
-            //'Record' => 'Dpub\Controller\RecordController',
-            //'Doklief'=> 'Dpub\Controller\DokliefController',
-            'Dpub'=> 'Dpub\Controller\DpubController',
-            'Opus'=> 'Dpub\Controller\DpubController',
-            //'View'   => 'Dpub\Controller\ViewController',
-            //'OAI'    => 'Dpub\Controller\OaiController',
-            //'oai'    => 'Dpub\Controller\OaiController',
+            //'Record' => 'Dbib\Controller\RecordController',
+            //'Doklief'=> 'Dbib\Controller\DokliefController',
+            'Dbib'=> 'Dbib\Controller\DbibController',
+            'Opus'=> 'Dbib\Controller\DbibController',
+            //'View'   => 'Dbib\Controller\ViewController',
+            //'OAI'    => 'Dbib\Controller\OaiController',
+            //'oai'    => 'Dbib\Controller\OaiController',
         ],
     ],
     'service_manager' => [
         'allow_override' => true,
         'factories' => [
-            // 'Dpub\OAI\Server' => 'VuFind\OAI\ServerFactory',
+            // 'Dbib\OAI\Server' => 'VuFind\OAI\ServerFactory',
         ],
         'aliases' => [
-            // 'Dpub\RecordTabPluginManager' => 'Dpub\RecordTab\PluginManager',
+            // 'Dbib\RecordTabPluginManager' => 'Dbib\RecordTab\PluginManager',
         ],
     ],
     'vufind' => [
         'plugin_managers' => [
             'ils_driver' => [ 
                 'factories' => [
-                    // 'Dpub\ILS\Driver\LBS4' => 'Dpub\ILS\Driver\Factory::getLBS4',
-                    // 'Dpub\\ILS\\Driver\\Folio' => 'Dpub\\ILS\\Driver\\FolioFactory',
-                    // 'Dpub\\ILS\\Driver\\Opus' => 'Dpub\\ILS\\Driver\\OpusFactory',
+                    // 'Dbib\ILS\Driver\LBS4' => 'Dbib\ILS\Driver\Factory::getLBS4',
+                    // 'Dbib\\ILS\\Driver\\Folio' => 'Dbib\\ILS\\Driver\\FolioFactory',
+                    // 'Dbib\\ILS\\Driver\\Opus' => 'Dbib\\ILS\\Driver\\OpusFactory',
                  ],
                  'aliases' => [
-                               // 'lbs4' => 'Dpub\ILS\Driver\LBS4',
-                               // 'folio' => 'Dpub\\ILS\\Driver\\Folio',
-                               // 'opus' => 'Dpub\\ILS\\Driver\\Opus',
+                               // 'lbs4' => 'Dbib\ILS\Driver\LBS4',
+                               // 'folio' => 'Dbib\\ILS\\Driver\\Folio',
+                               // 'opus' => 'Dbib\\ILS\\Driver\\Opus',
                               ]
             ],
             'recommend' => [ 
-				 'aliases' => [ 'authorid' => 'Dpub\Recommend\AuthorId' ]
+				 'aliases' => [ 'authorid' => 'Dbib\Recommend\AuthorId' ]
             ],
             'recorddriver' => [
                 'factories' => [
-                    // 'Dpub\RecordDriver\SolrOpus' => 'Dpub\RecordDriver\Factory::getSolrOpus',
-                    'Dpub\RecordDriver\SolrDpub' => 'Dpub\RecordDriver\Factory::getSolrDpub',
-                    // 'Dpub\RecordDriver\SolrOpac' => 'Dpub\RecordDriver\Factory::getSolrOpac',
-                    // 'Dpub\RecordDriver\WorldCat' => 'Dpub\RecordDriver\Factory::getWorldCat',
+                    // 'Dbib\RecordDriver\SolrOpus' => 'Dbib\RecordDriver\Factory::getSolrOpus',
+                    'Dbib\RecordDriver\SolrDbib' => 'Dbib\RecordDriver\Factory::getSolrDbib',
+                    // 'Dbib\RecordDriver\SolrOpac' => 'Dbib\RecordDriver\Factory::getSolrOpac',
+                    // 'Dbib\RecordDriver\WorldCat' => 'Dbib\RecordDriver\Factory::getWorldCat',
                 ],
                 'aliases' => [
-                    'solrdpub' => 'Dpub\RecordDriver\SolrDpub',
-                    // 'solropus' => 'Dpub\RecordDriver\SolrOpus',
-                    // 'solropac' => 'Dpub\RecordDriver\SolrOpac',
-                    // 'wordlcat' => 'Dpub\RecordDriver\WorldCat',
+                    'solrdbib' => 'Dbib\RecordDriver\SolrDbib',
+                    // 'solropus' => 'Dbib\RecordDriver\SolrOpus',
+                    // 'solropac' => 'Dbib\RecordDriver\SolrOpac',
+                    // 'wordlcat' => 'Dbib\RecordDriver\WorldCat',
                 ]
             ],
             'recordtab' => [
                 'factories' => [
-                   'Dpub\RecordTab\References' => 'Dpub\RecordTab\Factory::getReferences',
-                   'Dpub\RecordTab\Citations' => 'Dpub\RecordTab\Factory::getCitations',
+                   'Dbib\RecordTab\References' => 'Dbib\RecordTab\Factory::getReferences',
+                   'Dbib\RecordTab\Citations' => 'Dbib\RecordTab\Factory::getCitations',
                 ],
                 'aliases' => [
-                    'references' => 'Dpub\RecordTab\References',
-                    'citations' => 'Dpub\RecordTab\Citations',
+                    'references' => 'Dbib\RecordTab\References',
+                    'citations' => 'Dbib\RecordTab\Citations',
                 ]
             ],
         ],
@@ -85,8 +85,8 @@ $dynamicRoutes = [
 ];
 
 $staticRoutes = [
-    'Dpub/Home', 'Dpub/Upload', 'Dpub/Admin', 'Dpub/Edit', 'Dpub/Security', 
-    'Dpub/View', 'Dpub/Subject', 
+    'Dbib/Home', 'Dbib/Upload', 'Dbib/Admin', 'Dbib/Edit', 'Dbib/Security', 
+    'Dbib/View', 'Dbib/Subject', 
     // 'View/Barrier', 'View/Text', 'View/Video', 
     // 'Doklief/Home', 'Doklief/Admin', 'Doklief/View', 'Doklief/Login'
 ];
