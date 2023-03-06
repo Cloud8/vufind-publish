@@ -18,8 +18,8 @@
   - Filesystem access : "path/base" from domain table 
     (e.g. /srv/archiv/adm/dbib) must be writable (e.g. for www-data)
 
-  - Metadata editing and pubishing: requires permission to AdminModule
-  - Content streaming : requires permission to StreamView
+  - Metadata editing and publishing: requires permission to AdminModule
+  - Content streaming : requires permission to StreamView (from permissions.ini)
 
 ### Publishing
 
