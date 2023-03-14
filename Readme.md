@@ -7,16 +7,16 @@
     mv themes/dbib $VUFIND_HOME/themes
     cp -i config/vufind/* $VUFIND_LOCAL_DIR/config/
 
-    mysql> Create Database dbib3 CHARACTER SET utf8 COLLATE utf8_unicode_ci;
-    mysql> Grant all on dbib3.* to admin;
-    mysql --login-path=admin dbib3 < module/Dbib/sql/create-data.sql 
-    mysql --login-path=admin dbib3 < module/Dbib/sql/create-view.sql 
+    mysql> Create Database dcterms CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+    mysql> Grant all on dcterms.* to admin;
+    mysql --login-path=admin dcterms < module/Dbib/sql/create-data.sql 
+    mysql --login-path=admin dcterms < module/Dbib/sql/create-view.sql 
 
 ### Permissions (see vufind/permissions.ini)
 
   - Database access : see config/vufind/Dbib.ini
   - Filesystem access : "path/base" from domain table 
-    (e.g. /srv/archiv/adm/dbib) must be writable (e.g. for www-data)
+    (e.g. /srv/archiv/adm/pub/dbib) must be writable (e.g. for www-data)
 
   - Metadata editing and publishing: requires permission to AdminModule
   - Content streaming : requires permission to StreamView (from permissions.ini)
