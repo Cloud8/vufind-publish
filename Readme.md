@@ -1,32 +1,17 @@
 
 ## A VuFind Publishing module
 
-### Configure 
+### Description
 
-    mv module/Dbib $VUFIND_HOME/module
-    mv themes/dbib $VUFIND_HOME/themes
-    cp -i config/vufind/* $VUFIND_LOCAL_DIR/config/
+  This module can be used together with the 
+  [VuFind](https://github.com/vufind-org/vufind) Discovery-System 
+  and adds functionality useful for digital items like 
 
-    mysql> Create Database dcterms CHARACTER SET utf8 COLLATE utf8_unicode_ci;
-    mysql> Grant all on dcterms.* to admin;
-    mysql --login-path=admin dcterms < module/Dbib/sql/create-data.sql 
-    mysql --login-path=admin dcterms < module/Dbib/sql/create-view.sql 
+    * edit metadata inspired by [DCTerms](https://javadoc.io/static/org.apache.jena/jena-core/3.13.0/org/apache/jena/vocabulary/DCTerms.html) vovabulary
+    * view digital items 
 
-### Permissions (see vufind/permissions.ini)
+### Installation
 
-  - Database access : see config/vufind/Dbib.ini
-  - Filesystem access : "path/base" from domain table 
-    (e.g. /srv/archiv/adm/pub/dbib) must be writable (e.g. for www-data)
-
-  - Metadata editing and publishing: requires permission to AdminModule
-  - Content streaming : requires permission to StreamView (from permissions.ini)
-
-### Publishing
-
-  - Use Dbib/Upload form to send a document
-
-  - Use Dbib/Admin (with Admin permission from permissions.ini)
-    Edit metadata && Push the "publish"-Button
-    Edit, Create Access-URL and push the "publish"-Button 
+  see [Install](Install.md)
 
 ____________________________________________________________________________
