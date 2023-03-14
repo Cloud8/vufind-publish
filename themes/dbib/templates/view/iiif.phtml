@@ -1,0 +1,126 @@
+<?php
+  $this->headTitle($this->driver->getShortTitle());
+  $this->layout()->searchbox = false;
+
+  $this->headLink()->appendStylesheet('mirador-2.7-combined.css');
+  $this->headStyle()->appendStyle("div.container { padding:0; }");
+
+  $annotator = false; // whether to show annotation layer
+?>
+
+    <div id="mirador-viewer"></div>
+
+    <?/* this is for production: */?>
+    <?php echo $this->inlineScript()->appendFile('mirador-2.7/mirador.min.js');
+    ?>
+
+    <?/* for dev: */?>
+    <?/* php echo $this->inlineScript()->appendFile('mirador-2.7/mirador.js'); 
+      */?>
+    <?/* php echo $this->inlineScript()->appendFile('mirador-2.7/plugins/PhysicalRuler/physicalRuler.js'); // GH2020-04 */ ?>
+
+    <script type="text/javascript">
+    var titleLink = "<?=$this->link?>"; 
+    $(function(){
+          Mirador({
+            'annotationEndpoint': {
+                'name': 'Autobib Annotation',
+                'module': '<?=$this->module?>',
+                'options': {
+                    url: '<?=$this->storage?>',
+                    storeId: 'comparison',
+                    APIKey: '<?=$this->annotator?>'
+                }
+            },
+            'buildPath': "<?=$this->base?>",
+            'data': [{
+              /*<![CDATA[*/
+                'manifestUri': "<?=$this->manifest?>"
+              /*]]>*/
+            }],
+            'id': 'mirador-viewer',
+            'windowObjects': [{
+              /*<![CDATA[*/
+                'loadedManifest': "<?=$this->manifest?>"
+                , 'displayLayout': false
+                , 'sidePanel': true
+                , 'sideVisible': false
+                , 'bottomPanelVisible': false
+              /*]]>*/
+            }]
+            , 'mainMenuSettings': {
+               'show': false // top level : layout, full screen (again!)
+            }
+            , "sidePanelOptions" : {
+                "tocTabAvailable": true
+                , "layersTabAvailable": false
+                , "searchTabAvailable": false
+            }
+           // , "canvasControls": { // controls available to display on canvas
+
+           //   "imageManipulation" : {
+           //     "manipulationLayer" : false,
+           //     "controls" : {
+           //       "rotate" : true,
+           //       "brightness" : true,
+           //       "contrast" : true,
+           //       "saturate" : true,
+           //       "grayscale" : true,
+           //       "invert" : false,
+           //       "mirror" : false
+           //      }
+           //    }
+           //  }
+            , "physicalRuler": {
+              color: "#ffffff",     // The color for the rulers and labels
+              location: "bottom-left",  // Location of the reference point
+              smallDashSize: 10,    // Size of the small dashes in pixels
+              largeDashSize: 15,    // Size of the large dashes in pixels
+              labelsEvery: 5,  // Draw ruler labels every n centimeters/inches
+              imperialUnits: false  // Use imperial units instead of metric
+            }
+          });
+    });
+
+    <?/* create title link and destroy annotation layer */?>
+    var RecordLink = {
+        inject: function(){
+          var origFunc = Mirador.Workspace.prototype.bindEvents;
+          Mirador.Workspace.prototype.bindEvents = function(){
+            origFunc.apply(this);
+            this.eventEmitter.subscribe('windowUpdated', function(event, data){
+              if(!data.loadedManifest){
+                return;
+              }
+              var slot = this.getSlotFromAddress(data.slotAddress).appendTo;
+              var title = $('.window-manifest-title', slot);
+              var text = title.text();
+              $(title).html('<a href="' + titleLink + '">' + text + '</a>');
+            }.bind(this));
+          }; // console.log('Record link injected');
+        },
+        destroy: function(){
+          var origFunc = Mirador.Workspace.prototype.bindEvents;
+          Mirador.Workspace.prototype.bindEvents = function(){
+            origFunc.apply(this);
+            this.eventEmitter.subscribe('windowUpdated', function(event, data){
+              if(!data.loadedManifest){
+                return;
+              }
+              var slot = this.getSlotFromAddress(data.slotAddress).appendTo;
+              var node = $('.mirador-osd-annotations-layer', slot);
+              $(node).html('');
+            }.bind(this));
+          }; // console.log('Record link destroy');
+        }
+    };
+
+    $(document).ready(function(){
+        RecordLink.inject();
+        <?php if (empty($this->annotator)) {
+                  echo 'RecordLink.destroy();';
+              }
+         ?>
+    });
+    </script>
+

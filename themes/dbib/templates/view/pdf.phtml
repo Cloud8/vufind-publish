@@ -1,0 +1,39 @@
+<?php
+    $this->headTitle($this->title);
+    echo $this->headScript();
+    // $this->headScript->appendFile('bootstrap.min.js');
+?>
+
+    <div id="pdfCanvasContainer">
+        <a href="<?=$this->link?>"><i class="fa fa-fw fa-book"></i>&nbsp;<?=$this->title?>
+        </a>
+        <iframe src="<?=$this->viewer?><?=$this->file?>" width="100%" height="96%" style="min-height: 500px;" allowfullscreen webkitallowfullscreen>
+        </iframe>
+	</div>
+
+    <script type="text/javascript">
+    $(function() {
+
+        var main = $('#content');
+        var $uv = $('#pdfCanvasContainer');
+
+        function resize() {
+            var windowWidth = main.offsetWith;
+            var windowHeight = window.innerHeight;
+            $uv.width(windowWidth);
+            $uv.height(windowHeight);
+            var frame = document.getElementsByTagName('iframe');
+            if (frame) {
+                frame.width = windowWidth;
+                frame.height = windowHeight;
+            }
+        }
+
+        $(window).on('resize', function() {
+            resize();
+        });
+
+        resize();
+    });
+   </script>
+

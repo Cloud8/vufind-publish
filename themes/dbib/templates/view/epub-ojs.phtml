@@ -1,0 +1,56 @@
+<?
+  // Set page title.
+  $this->headTitle($this->title);
+
+  // This page uses a special view layout.
+  // $this->layout()->searchbox = false;
+
+  $this->headLink()->appendStylesheet($this->viewer.'/viewer/css/reader.css');
+  $this->headScript()->appendFile($this->viewer.'/dist/jszip.min.js');
+  $this->headScript()->appendFile($this->viewer.'/dist/epub.min.js');
+  $this->headScript()->appendFile($this->viewer.'/viewer/js/reader.js?url='.$this->url);
+
+  /*
+  <table>
+   <tr><td>Title:</td><td> <?=$this->title?> </td></tr>
+   <tr><td>Link:</td><td> <?=$this->link?> </td></tr>
+   <tr><td>URL:</td><td><a id="book" href="<?=$this->url?>"><?=$this->url?></a></td></tr>
+  </table>
+  <hr/>
+<body style="background-color: #404040;>
+    <h3 align="center"><a href="<?=$this->link?>"><?=$this->title?></a></h3>
+  */
+?>
+
+<body>
+  <div id="main">
+    <a id="opener">
+      <i class="fa fa-bars"></i>
+    </a>
+    <div id="viewer" class="spreads loading"></div>
+
+    <span id="hiddenTitle"></span>
+    <a id="prev" href="#prev" class="arrow">
+      <i class="fa fa-arrow-turn-left">‹</i>
+    </a>
+    <a id="next" href="#next" class="arrow">
+      <i class="fa fa-arrow-turn-right">›</i>
+    </a>
+  </div>
+  <div id="navigation">
+    <a id="closer">
+      <i class="fa fa-book"></i>
+    </a>
+    <a href="<?=$this->link?>"><h1 id="title">...</h1></a>
+    <image id="cover" width="150px"/>
+    <h2 id="author">...</h2>
+    <ul id="toc"></ul>
+  </div>
+
+  <script>
+     var url = "<?=$this->url?>";
+     // console.log('read ' + url);
+     // see epubJsViewer-ojs/viewer/js/reader.js
+  </script>
+</body>
+

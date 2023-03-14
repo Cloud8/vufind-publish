@@ -1,0 +1,100 @@
+<?php
+    $this->headTitle($this->title);
+    $this->layout()->searchbox = false;
+
+    $this->headLink()->appendStylesheet('../js/uv/uv.css');
+    $this->headScript()->appendFile('uv/lib/offline.js');
+    $this->headScript()->appendFile('uv/helpers.js');
+?>
+
+    <script type="text/javascript">
+    window.addEventListener('uvLoaded', function(e) {
+            urlDataProvider = new UV.URLDataProvider(true);
+            var formattedLocales;
+            var locales = urlDataProvider.get('locales', '');
+
+            if (locales) {
+                var names = locales.split(',');
+                formattedLocales = [];
+
+                for (var i in names) {
+                    var nameparts = String(names[i]).split(':');
+                    formattedLocales[i] = {name: nameparts[0], label: nameparts[1]};
+                }
+
+            } else {
+                formattedLocales = [
+                    {
+                        name: 'en-GB'
+                    }
+                ]
+            }
+
+            uv = createUV('#uv', {
+                // root: '.',
+                // root: 'http://localhost/ubfind/themes/seaview/js/uv',
+                // root: 'uv',
+                // root: '/ubfind/themes/seaview/js/uv',
+                root: '<?=$this->base?>',
+                // iiifResourceUri: urlDataProvider.get('manifest'),
+                // iiifResourceUri: 'manifest.json',
+                // iiifResourceUri: urlDataProvider.get('manifest'),
+                iiifResourceUri: '<?=$this->manifest ?>',
+                configUri: urlDataProvider.get('config'),
+                collectionIndex: Number(urlDataProvider.get('c', 0)),
+                manifestIndex: Number(urlDataProvider.get('m', 0)),
+                sequenceIndex: Number(urlDataProvider.get('s', 0)),
+                canvasIndex: Number(urlDataProvider.get('cv', 0)),
+                rangeId: urlDataProvider.get('rid', 0),
+                rotation: Number(urlDataProvider.get('r', 0)),
+                xywh: urlDataProvider.get('xywh', ''),
+                embedded: true,
+                locales: formattedLocales
+            }, urlDataProvider);
+
+        }, false);
+    </script>
+
+    <style>
+        #uv {
+            width: 800px;
+            height: 600px;
+        }
+    </style>
+    
+    <?php /* looks bad :
+        <h2><a href="<?=$this->link?>"><?=$this->title?></a></h2>
+    */?>
+    <div id="uv" class="uv"></div>
+
+    <script>
+        $(function() {
+
+        var $UV = $('#uv');
+
+        function resize() {
+            var windowWidth = window.innerWidth;
+            var windowHeight = window.innerHeight;
+            $UV.width(windowWidth);
+            $UV.height(windowHeight);
+        }
+
+        $(window).on('resize', function() {
+            resize();
+        });
+
+        resize();
+        });
+    
+        // GH2020-12 
+        $(document).ready(function() {
+        var $title = $('.title');
+        var text = $title.first().text();
+        // console.log('GH2020-12 ' + $title.length + ' ' + text);
+        // var link = "<?=$this->link?>";
+        // title.text('<a href="/ubfind' + '">' + text + '</a>');
+        // title.html('<a href="' + link + '">' + text + '</a>');
+        });
+    </script>
+    <?php echo $this->inlineScript()->appendFile('uv/uv.js'); ?>
+

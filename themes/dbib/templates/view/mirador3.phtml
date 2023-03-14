@@ -1,0 +1,26 @@
+<?php
+  $this->headTitle($this->title);
+  $this->layout()->searchbox = false;
+  //  http://projectmirador.org/docs/docs/getting-started.html
+  //  https://github.com/ProjectMirador/mirador/wiki/Complete-Configuration-API
+?>
+
+    <div id="mirador"></div>
+    <?php // Mirador 3 : see /vol/vol01/data/packets/git/mirador
+      $this->inlineScript(\Zend\View\Helper\HeadScript::FILE,
+            'mirador-3.0/mirador.min.js', 'set', [ 'id' => 'viewer']);
+      echo $this->inlineScript();
+      echo '';
+    ?>
+
+    <script type="text/javascript">
+        var miradorInstance = Mirador.viewer({
+            id: 'mirador',
+            windows: [{
+                // loadedManifest: 'http://titanic/~hatop/manifest.json',
+                loadedManifest: '<?=$this->manifest?>',
+                thumbnailNavigationPosition: 'far-bottom',
+            }]
+        });
+    </script>
+

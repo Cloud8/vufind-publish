@@ -1,0 +1,29 @@
+<?=$this->doctype('HTML5')?>
+<html lang="<?=$this->layout()->userLang ?>">
+  <head>
+    <?php $this->setupThemeResources(); ?>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <?=$this->headMeta()?>
+    <?=$this->headTitle()?>
+
+  <?php 
+    // View layout - used by [pdf iiif epub] display templates
+    // echo $this->headThemeResources();
+    echo $this->headLink();
+    echo $this->headStyle();
+    echo $this->headScript();
+
+    // Session keep-alive
+    if ($this->keepAlive()) {
+        $this->headScript()->appendScript('var keepAliveInterval = '
+            . $this->keepAlive());
+        $this->headScript()->appendFile("keep_alive.js");
+    }
+  ?>
+  </head>
+  <body>
+    <?=$this->layout()->content?>
+  </body>
+</html>

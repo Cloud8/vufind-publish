@@ -1,0 +1,38 @@
+<?
+    // Set page title.
+    $this->headTitle($this->driver->getShortTitle());
+
+    // Disable top search box -- this page has a special layout.
+    $this->layout()->searchbox = false;
+
+    // Set default value if necessary:
+    if (!isset($this->searchClassId)) {
+        $this->searchClassId = 'Solr';
+    }
+
+    // Load search actions and settings (if any):
+    $options = $this->searchOptions($this->searchClassId);
+    $basicSearch = $options->getSearchAction();
+    $advSearch = $options->getAdvancedSearchAction();
+    $admin = false;
+?>
+
+<div class="opus">
+  <? if ($this->ils()->getOfflineMode() == "ils-offline"): ?>
+    <div class="sysInfo">
+      <h2><?=$this->transEsc('ils_offline_title')?></h2>
+      <p><strong><?=$this->transEsc('ils_offline_status')?></strong></p>
+      <p><?=$this->transEsc('ils_offline_home_message')?></p>
+      <? $supportEmail = $this->escapeHtml($this->systemEmail()); ?>
+      <p><a href="mailto:<?=$supportEmail?>"><?=$supportEmail?></a></p>
+    </div>
+  <? endif; ?>
+  <?=$this->context($this)->renderInContext("search/searchbox.phtml", ['ignoreHiddenFilterMemory' => true])?>
+  <?=$this->inlineScript(\Zend\View\Helper\HeadScript::SCRIPT, '$("#searchForm_lookfor").focus();', 'SET'); ?>
+</div>
+
+<br/>
+<hr/>
+
+<?=$text?>
+

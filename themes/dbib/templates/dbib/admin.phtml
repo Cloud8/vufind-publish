@@ -1,0 +1,199 @@
+<?php
+
+$this->layout()->searchbox = false;
+
+$form = $this->form;
+$form->setAttribute('class', 'form-horizontal');
+$form->prepare();
+
+$errorsHelper  = $this->plugin('formelementerrors');
+$errorsHelper->setMessageOpenFormat('<div class="help-block">')
+    ->setMessageSeparatorString('</div><div class="help-block">')
+    ->setMessageCloseString('</div>');
+
+?>
+
+<p class="dbib">
+    <legend>
+    <?php echo '<a href="'.$this->url('dbib-admin').'?page=1">'
+               .$this->translate('Indexes').'</a>';?>
+    <span class="muted">&nbsp;/&nbsp;</span>
+    <?php echo '<a href="'.$this->url('dbib-admin').'?page=2">'
+               .$this->translate('Dbib::Blocked').'</a>'; ?>
+    <span class="muted">&nbsp;/&nbsp;</span>
+    <?php echo '<a href="'.$this->url('dbib-admin').'?page=3">'
+               .$this->translate('Document Inspector').'</a>'; ?>
+    <span class="muted">&nbsp;/&nbsp;</span>
+    <?php echo '<a href="'.$this->url('dbib-admin').'?page=5">'
+               .$this->translate('Brief View').'</a>'; ?>
+    <?php if (!(empty($this->form->title))) {
+              echo '<span class="muted">&nbsp;/&nbsp;</span>'; 
+              echo '<a href="'.$this->url('dbib-admin').'?page='.$form->page;
+              echo '">'.$this->translate($this->form->title).'</a>';
+          } ?>
+    </legend>
+    <table class="table table-xs table-striped table-bordered">
+    <?php 
+    if ($form->page<'5') { // show records
+        foreach($form->data as $row) {
+            echo '<tr>'; 
+            echo '<td class="col-xs-1">' . $row['status'] . '</td>'; 
+            echo '<td class="col-xs-1">' . $row['source_opus'] . '</td>'; 
+            echo '<td class="col-xs-4">' .'<a href="'.$this->url('dbib-edit')
+                .'?id='.$form->table.$row['source_opus']
+                .'">'.$row['title'] . '</a></td>'; 
+            echo '<td class="col-xs-2">' . $row['creator_name'] . '</td>'; 
+            echo '<td class="col-xs-2">' . $row['dokumentart'] . '</td>'; 
+            echo '<td class="col-xs-2">' . $row['bem_intern'] . '</td>'; 
+            //for($i=3; $i<count($row)/2; $i++) {
+            //    echo "<td>".$row[$i]."</td>";
+            //}
+            echo "</tr>\n"; 
+        }     
+    } else if ($form->page=='5') { // show admin links
+        foreach($form->data as $row) {
+            echo '<tr>'; 
+            echo '<td class="col-xs-1">' . $row['id'] . '</td>'; 
+            if ($row['id']=='2') {
+                echo $this->form()->openTag($form);
+                echo '<td class="col-xs-5">';
+                $elem = $form->get('opus:ppn');
+                $elem->setLabelAttributes(array('class' => 'control-label'));
+                echo '<span>'.$this->formText($elem).'</span> ';
+                echo '<button class="btn btn-secondary"';
+                echo ' name="opus:action" value="ppn">';
+                echo $elem->getLabel().'</button>';
+                echo '</td><td>'."\n"; 
+                //echo '<strong>'.$this->translate($row['text']).'</<strong>'; 
+                echo '<button class="btn" style="background-color:transparent"';
+                echo ' onClick="document.getElementsByName(\'opus&#x3A;ppn\')';
+                // echo '[0].value=\'060418435\'";
+                echo '[0].value=\'380738589\'"';
+                // echo '[0].value=\'35173614X\'"';
+                echo ' type="button">'.$this->translate($row['text']);
+                echo '</button></td>'; 
+                echo $this->form()->closeTag();
+            } else {
+                echo '<td class="col-xs-5"><a href="'.$row['url'].'">';
+                echo $this->translate($row['label']). '</a></td>';
+                echo '<th>&nbsp;&nbsp;'.$this->translate($row['text']).'</th>'; 
+            }
+            echo "</tr>\n"; 
+        }     
+    } else if ($form->page=='6' || $form->page=='8') { // serial or collection 
+        foreach($form->data as $row) {
+            echo $this->form()->openTag($form);
+            echo '<tr>'; 
+            echo '<td class="col-xs-1">' . $row['id'] . '</td>'; 
+            echo '<td class="col-xs-9">';
+            if (sizeof($form->data)==1) {
+                if ($form->page==6) {
+                    $elem = $form->get('opus:series');
+                } else if ($form->page==8) {
+                    $elem = $form->get('opus:coll');
+                }
+                $elem->setValue($row['name']);
+                echo $this->formTextarea($elem);
+            } else {
+                echo $row['name'];
+            }
+            echo '</td><td class="col-xs-1">';
+            if ($form->page==6) {
+                $elem = $form->get('opus:sid');
+            } else if ($form->page==8) {
+                $elem = $form->get('opus:cid');
+            }
+            $elem->setValue($row['id']);
+            echo $this->formHidden($elem);
+            echo '<button class="btn" name="opus:action" value="edit">';
+            if (sizeof($form->data)==1) {
+                echo $this->translate('Dbib::Change');
+            } else {
+                echo $this->translate('Edit');
+            }
+            echo '</button>'; 
+            echo '</td>'.PHP_EOL;
+            echo '</tr>'.PHP_EOL; 
+            if (sizeof($form->data)==1) {
+                echo '<tr>'.PHP_EOL; 
+                echo '<td class="col-xs-1">';
+                echo $this->translate('CreatorRoles::Beiträger');
+                echo '</td>'.PHP_EOL;
+                echo '<td class="col-xs-9">';
+                if (isset($row['contributor'])) {
+                    $elem = $form->get('opus:contributor');
+                    $elem->setValue($row['contributor']);
+                    echo $this->formText($elem);
+                }
+                echo '</td><td class="col-xs-1">';
+                if (isset($row['type'])) {
+                    $elem = $form->get('opus:type');
+                    $elem->setLabel('Document Type');
+                    $elem->setValue($row['type']);
+                    echo $this->formSelect($elem);
+                }
+                echo '</td>'.PHP_EOL;
+                echo '</tr>'.PHP_EOL; 
+                echo '<tr><td>'; 
+                echo '<span class="muted">&nbsp;URN&nbsp;</span>';
+                echo '</td><td>'.$row['urn'] . '</td><td>';
+                echo '<button class="btn" name="opus:action" value="delete">';
+                echo $this->translate('Delete').'</button></td>';
+                echo '</tr><tr><td>'; 
+                echo '<span class="muted">&nbsp;URL&nbsp;</span>';
+                echo '</td><td>'.$row['url'] . '</td><td>';
+                echo '<button class="btn" name="opus:action" value="index"/>';
+                echo $this->translate('Dbib::Indexing').'</button></td>';
+                echo '</tr>'.PHP_EOL; 
+            }
+            echo $this->form()->closeTag();
+        }
+    } else if ($form->page =='7' || $form->page =='9') { 
+        // create serial or collection
+        echo $this->form()->openTag($form);
+        echo '<tr>'; 
+        if ($form->page =='7') {
+            $elem = $form->get('opus:sid');
+        } else if ($form->page =='9') {
+            $elem = $form->get('opus:cid');
+        }
+        echo '<td class="col-xs-1">'. $elem->getValue();
+        echo $this->formHidden($elem);
+        echo '</td><td class="col-xs-8">';
+        if ($form->page =='7') {
+            $elem = $form->get('opus:series');
+        } else if ($form->page =='9') {
+            $elem = $form->get('opus:coll');
+        }
+        echo $this->formTextarea($elem);
+        echo '</td>';
+        echo '<td class="col-xs-3">'.$this->translate('Title').'</td>';
+        echo '</tr>'.PHP_EOL; 
+        echo '<tr>'; 
+        echo '<td class="col-xs-1"></td>';
+        echo '<td class="col-xs-8">';
+        $elem = $form->get('opus:url');
+        echo $this->formText($elem);
+        echo '</td><td class="col-xs-3">';
+        echo '<button class="btn" name="opus:action" value="create">';
+        echo $this->translate('Dbib::Create').'</button>'; 
+        echo '</tr>'.PHP_EOL; 
+        echo $this->form()->closeTag();
+    } else if ($form->page=='8') { 
+        // catched above
+    } else if ($form->page=='9') { 
+        // catched above
+    } else { // not defined
+        echo '<tr><th>'.$this->translate('Unknown').'</th></tr>';
+    }     
+    ?>
+    </table>
+    <?php
+        if (!empty($form->message)) {
+            echo '<div class="alert alert-danger">'
+            .$this->translate($form->message).'</div>';
+        }
+    ?>
+</p>
+
+

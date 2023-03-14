@@ -1,0 +1,68 @@
+
+<script type="text/javascript" src="/ubfind/xgnd.js" async></script>
+<script type="text/javascript">
+  var zielfeld = "";
+  var Trenner = " , ";
+  var serverurl = "https://xgnd.bsz-bw.de";
+  var suchoptionen = "";
+  xgnd_init();
+  function save() {
+      var subs = $("input[name='subject_swd']").val();
+      $("textarea[name='dcterms:subject']").val(subs);
+      return false;
+  }
+</script>
+
+<h2 class="lightbox-header">xGND</h2>
+
+<div id="Container" style="margin:10px;background-color:white;visibilty:hidden;height:720px;">
+        <img src="https://www.bsz-bw.de/img/bszlogo.gif" alt="Logo des BSZ Konstanz">
+        <h1>xGND-Recherche</h1>
+        <span class="reiter" onclick="toggle('Recherche')" id="RechercheReiter">Recherche</span>
+        <span class="reiter" onclick="toggle('Einstellungs')" id="EinstellungsReiter">Einstellungen</span>
+        <span class="reiter" onclick="toggle('Information')" id="InformationReiter">Information</span>
+        <div id="ordner" style="border:1px solid black; border-radius:0px;margin-top:0px;">
+            <div class="sheet" id="RechercheOberfl">
+                <div>
+                    Suche in <select size="1" id="suchfeld">
+                            <option selected="selected" value="pica.swr">Schlagwort, Ansetzungs- und Verweisf.</option>
+                            <option value="pica.sw">Teilwortsuche</option>
+                            <option value="pica.ppn">PP Nummer</option>
+                            <option value="pica.zid">GND Nummer</option>
+                        </select><br /><br />
+                        <input value="" name="suchwort" id="suchwort" size="20" type="textfield">
+                        <input value="Suchen" onclick="recherchiere()" type="button">
+                </div>
+                <div id="hauptfeld">
+                    <table id="datentabelle" style="padding:5px;border:1px solid silver">
+                    </table>
+                </div>
+                <div style="text-align:center;">
+                    <p> gemerkte Schlagworte:</p>
+                    <p id="gemerkteSchlagworte"></p>
+                </div>
+                <div style="text-align:center;">
+                <form action="<?=$this->url('opus-subject')?>" 
+                      method="post" id="opus-subject">
+                    <input type="hidden" value="" name="subject_swd"></input>
+                    <input type="button" value="Verwerfen" onclick="resetAll()">
+                    <input type="submit" onclick="save()" data-dismiss="modal" value="&Uuml;bernehmen">
+                </form>
+                </div>
+            </div>
+            <div class="sheet" id="EinstellungsOberfl" style="display:none">
+                <input type="checkbox" id="suchoptionenTbs" checked="checked"></input>Nur für die Sacherschließung vorgesehene Einträge
+                <table>
+                    <tr>
+                        <td></td><td></td>
+                    </tr>
+                </table>
+                <p>Die Schlagworte werden in das Feld mit der ID/dem Namen <span style="margin:2px;border. solid 1px black;"></span> geschrieben.</p>
+            </div>
+            <div class="sheet" id="InformationOberfl" style="display:none">
+                <h3>Informationen</h3>
+                <p>Dieser Dienst wird vom Bibliotheksservice-Zentrum Baden-Württemberg in Konstanz bereitgestellt.</p>
+                <p>Um Sie über Neuigkeiten oder auch Wartungen informieren zu können bitten wir Sie, sich für einen Newsletter zur xGND unter <a href="mailto:xgnd@bsz-bw.de?subject=Anmeldung Newsletter">xgnd@bsz-bw.de</a> zu registrieren.</p>
+            </div>
+        </div> <!-- Ordner -->
+    </div> <!-- Container -->
