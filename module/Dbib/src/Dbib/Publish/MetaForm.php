@@ -51,6 +51,7 @@ class MetaForm extends Form
 
     use \VuFind\I18n\Translator\TranslatorAwareTrait;
 
+    var $dev = true; 
     var $terms;
     var $db;
     var $page;
@@ -66,7 +67,6 @@ class MetaForm extends Form
     var $indexer;
 	var $inputFilter;
 	var $publish;
-    var $dev; // development support
 
     public function __construct($name = null, $params = [])
     {
@@ -83,7 +83,6 @@ class MetaForm extends Form
         $this->admin = $params['admin'];
         $this->db = $params['db'];
         $this->solr = $params['solr'];
-        $this->dev = true;
 
         $this->page->setValue(1);
 		$this->setAttribute('enctype', 'multipart/form-data');

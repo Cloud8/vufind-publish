@@ -31,7 +31,7 @@ use Laminas\Http\Client;
 
 class DbibIndex {
 
-    var $dev = true;
+    var $dev = false;
 
     var $db;
     var $solr;     // solr core

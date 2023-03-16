@@ -38,6 +38,8 @@ use Dbib\Publish\DbibAdmin as DbibAdmin;
 class DbibController extends \VuFind\Controller\AbstractBase
 {
 
+    var $dev = true;
+
     /**
      * Record driver
      *
@@ -266,6 +268,12 @@ class DbibController extends \VuFind\Controller\AbstractBase
             return true;
         }
         return false;
+    }
+
+    private function log($msg) {
+        if ($this->dev) {
+            error_log('DbibController '.$msg);
+        }
     }
 
 }

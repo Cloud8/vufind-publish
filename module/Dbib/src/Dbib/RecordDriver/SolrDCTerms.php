@@ -76,8 +76,10 @@ class SolrDCTerms extends SolrDefault
         } else {
             // find content streaming path
             $img = trim($this->fields['thumbnail']);
-            if (substr($img,0,7)=='file://') {
-                $url = $self . '/View?q=' . $img;
+            if (ctype_upper(substr($img,0,1)) || substr($img,0,7)=='file://') {
+                $url = $self . '/SMS?q=' . $img;
+                // $url = $self . '/Stream?q=' . $img;
+                error_log('cover '.$url);
             } else { // dev may have a copy : shortcut 
                 $x = strlen($img)>8 ? strpos($img,'/',8) : 0;
                 if (file_exists($_SERVER['DOCUMENT_ROOT'].substr($img,$x))) {
@@ -155,7 +157,6 @@ class SolrDCTerms extends SolrDefault
 
     protected function filter() {
         $filter = function ($url) {
-            // $desc = substr($url, strrpos($url, '/') + 1);
             $desc = $this->translate('Online Access');
             if (substr($url, -4) == '.pdf') {
                 $desc = $this->translate('PDF Full Text');
@@ -180,7 +181,7 @@ class SolrDCTerms extends SolrDefault
             } else if (substr($url,0,1) == '[') { // Markdown style
                 $x = strpos($url,'](');
                 $desc = $this->translate(substr($url, 1, $x-1));
-                $url = substr($url,$x+2,strlen($url)-$x-3);
+                $url = substr($url, $x+2, strlen($url)-$x-3);
             } else if (substr($url, -9) == '/retrieve') { // DSpace
                 $desc = $this->translate('Get full text');
             } else if (strpos($url, '/view/')>0) {
@@ -190,7 +191,7 @@ class SolrDCTerms extends SolrDefault
             } else if (strpos($url, '/ep/')>0) {
                 $desc = $this->translate('Online Access');
             } else if (strpos($url, 'https://doi.org')===0) {
-                $desc = substr($url,8);
+                $desc = substr($url, 8);
             }
 
             if (isset($this->fields['rights_str'])) {
@@ -201,6 +202,10 @@ class SolrDCTerms extends SolrDefault
                     'routeParams' => ['id' => $this->getUniqueId(),'q' => $url],
                 ];
             } else {
+                $x = strlen($url)>8 ? strpos($url,'/',8) : 0;
+                // if (file_exists($_SERVER['DOCUMENT_ROOT'].substr($url,$x))) {
+                //     $url = substr($url, $x); // dev may have a copy
+                // }
                 return [ 'url'  => $url, 'desc' => $desc];
             }
         };

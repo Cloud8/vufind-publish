@@ -38,6 +38,7 @@ namespace Dbib\Publish;
 
 class DataStorage {
 
+    var $dev = true;
     var $db;
     var $domain;
     var $path;
@@ -47,7 +48,6 @@ class DataStorage {
     var $auto;
     var $urn_prefix;
     var $doi_prefix;
-    var $dev;
 
     public function __construct($db, $params = []) {
         $this->db = $db;
@@ -77,7 +77,6 @@ class DataStorage {
         $this->doi_prefix = $params['doi_prefix'] ?? null;
         $this->temp = '/volltexte/incoming/';
         $this->auto = '/volltexte/auto/';
-        $this->dev = true;
     }
 
     /** read data from opus or temp table */
