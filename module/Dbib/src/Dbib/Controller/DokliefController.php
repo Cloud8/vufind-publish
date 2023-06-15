@@ -153,7 +153,11 @@ class DokliefController extends \VuFind\Controller\MyResearchController
                 // Nothing -- download by admin
                 error_log('DokliefController::viewAction '. $docid.'#'.$count);
             }
-            return $this->forwardTo('Opus', 'view', ['q' => $docid]);
+            $file = $options['files'] . '/' . $docid;
+            error_log('stream ['.$file.']');
+            $stream = new DataStream($file, 'application/pdf');
+            $stream->start();
+            // return $this->forwardTo('Opus', 'view', ['q' => $docid]);
         } else {
             return $this->redirect()->toRoute('error-permissiondenied');
         }
@@ -218,28 +222,29 @@ class DokliefController extends \VuFind\Controller\MyResearchController
       */
     private function connect() {
         $conf = $this->getConfig();
-        $opus = $this->getConfig('Doklief');
+        $dbib = $this->getConfig('Dbib');
 
         // use vufind database
         $db = $this->serviceLocator->get('VuFind\DbAdapterFactory')
             ->getAdapterFromConnectionString($conf->Database->database);
         $db->query("SET CHARACTER SET 'utf8'")->execute();
         $options = [ 'db' => $db ];
-        $options['username'] = $this->getUser()->username;
-        $options['email'] = $this->getUser()->email;
-        if (empty($opus['Doklief']['data'])) {
+        if ($this->getUser()) {
+            $options['username'] = $this->getUser()->username;
+            $options['email'] = $this->getUser()->email;
+        }
+        if (empty($dbib['Doklief']['data'])) {
             $options['files'] = false;
             error_log('GH2021 bad : misconfigured doklief');
         } else {
-            $options['files'] = $opus['Doklief']['data'] ?? null;
+            $options['files'] = $dbib['Doklief']['data'] ?? null;
             // error_log('GH2021 doklief '.$options['files']);
-            $options['mailfrom'] = $opus['Doklief']['mailfrom'] ?? null;
-            $options['ftp'] = $opus['Doklief']['ftp'] ?? null;
+            $options['mailfrom'] = $dbib['Doklief']['mailfrom'] ?? null;
+            $options['ftp'] = $dbib['Doklief']['ftp'] ?? null;
         }
-        // $options['fview'] = $this->getServerUrl('opus-view');
         $options['fview'] = $this->getServerUrl('doklief-view');
-        $options['days'] = $opus['Doklief']['days'] ?? 14;
-        $options['ext'] = $opus['Doklief']['ext'] ?? null;
+        $options['days'] = $dbib['Doklief']['days'] ?? 14;
+        $options['ext'] = $dbib['Doklief']['ext'] ?? null;
         return $options;
     }
 

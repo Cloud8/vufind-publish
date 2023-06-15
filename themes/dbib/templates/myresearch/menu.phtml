@@ -9,7 +9,7 @@
 <? if ($this->permission()->allowDisplay('access.StreamView')): ?>
 <h3><?=$this->transEsc('Available Functionality')?></h3>
 <div class="myresearch-menu account-menu">
-    <a href="<?=$this->url('dbib-home')?>"<?=$this->active == 'favorites' ? ' class="active"' : ''?>">
+    <a href="<?=$this->url('dcterms-home')?>"<?=$this->active == 'favorites' ? ' class="active"' : ''?>">
       <i class="fa fa-fw fa-globe" aria-hidden="true"></i> <?=$this->transEsc('Publication Information')?>
     </a>
 </div>

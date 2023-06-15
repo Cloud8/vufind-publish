@@ -4,7 +4,7 @@
     $this->headScript()->appendFile('https://s7.addthis.com/js/250/addthis_widget.js?pub=' . urlencode($addThis));
   }
 
-  $tags = $this->driver->getGoogleScholarTags();
+  $tags = $this->driver->tryMethod('getGoogleScholarTags') ?? [];
   foreach ($tags as $tag) {
       if (!empty($tag['content'])) {
           $this->headMeta()->appendName($tag['name'], $tag['content']);
@@ -14,11 +14,10 @@
 ?>
 <nav class="record-nav">
   <ul class="action-toolbar" aria-label="<?=$this->transEscAttr('ajaxview_label_tools'); ?>">
-    <?php if ($this->permission()->allowDisplay('access.AdminModule')): ?>
+    <?php if ($this->permission()->allowDisplay('access.DebugMode')): ?>
+      <li role="none"><a class="fa-edit toolbar-btn btn-type-edit" href="<?=$this->url('dcterms-edit').'?id='.$this->driver->getUniqueId()?>" rel="nofollow"><?=$this->transEsc('Edit')?></a></li>
+    <?php elseif ($this->permission()->allowDisplay('access.AdminModule')): ?>
       <li role="none"><a class="fa-edit toolbar-btn btn-type-edit" href="<?=$this->url('dbib-edit').'?id='.$this->driver->getUniqueId()?>" rel="nofollow"><?=$this->transEsc('Edit')?></a></li>
-      <?/*
-      <li role="none"><a class="fa-edit toolbar-btn btn-type-edit" href="<?=$this->escapeHtmlAttr($this->recordLinker()->getActionUrl($this->driver, 'Edit'))?>" rel="nofollow"><?=$this->transEsc('Edit')?></a></li>
-      */?>
     <?php else: ?>
     <li role="none" class="dropdown">
       <a class="toolbar-btn fa-share-alt dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" href="#" rel="nofollow" aria-expanded="false"> Open Access</a>
@@ -37,10 +36,10 @@
     <?php $exportFormats = $this->export()->getFormatsForRecord($this->driver); ?>
     <?php if(count($exportFormats) > 0): ?>
       <li role="none" class="dropdown">
-        <a class="export-toggle toolbar-btn btn-type-export dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" href="<?=$this->escapeHtmlAttr($this->recordLinker()->getActionUrl($this->driver, 'Export'))?>" rel="nofollow" aria-expanded="false" aria-controls="export-options"><?=$this->transEsc('Export Record') ?></a>
+        <a class="export-toggle toolbar-btn btn-type-export dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" href="<?=$this->escapeHtmlAttr($this->recordLinker()->getActionUrl($this->driver, 'Export', [], '', ['excludeSearchId' => true]))?>" rel="nofollow" aria-expanded="false" aria-controls="export-options"><?=$this->transEsc('Export Record') ?></a>
         <ul class="dropdown-menu" id="export-options" role="menu">
           <?php foreach ($exportFormats as $exportFormat): ?>
-            <li role="none"><a <?php if ($this->export()->needsRedirect($exportFormat)): ?>target="<?=$this->escapeHtmlAttr($exportFormat)?>Main" <?php endif; ?>href="<?=$this->escapeHtmlAttr($this->recordLinker()->getActionUrl($this->driver, 'Export'))?>?style=<?=$this->escapeHtmlAttr($exportFormat)?>" rel="nofollow" role="menuitem"><?=$this->transEsc('Export to')?> <?=$this->transEsc($this->export()->getLabelForFormat($exportFormat))?></a></li>
+            <li role="none"><a <?php if ($this->export()->needsRedirect($exportFormat)): ?>target="<?=$this->escapeHtmlAttr($exportFormat)?>Main" <?php endif; ?>href="<?=$this->escapeHtmlAttr($this->recordLinker()->getActionUrl($this->driver, 'Export', [], '', ['excludeSearchId' => true]))?>?style=<?=$this->escapeHtmlAttr($exportFormat)?>" rel="nofollow" role="menuitem"><?=$this->transEsc('Export to')?> <?=$this->transEsc($this->export()->getLabelForFormat($exportFormat))?></a></li>
           <?php endforeach; ?>
         </ul>
       </li>

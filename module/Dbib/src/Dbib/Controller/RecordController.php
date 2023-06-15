@@ -105,7 +105,10 @@ class RecordController extends \VuFind\Controller\RecordController
                     $this->viewOnly = true;
                 } else if (substr($ip, 0, strlen($right)) === $right) {
                     $restricted = false;
-                }
+                } // else $this->log('# ' .$right .' # ' . $ip);
+            }
+            if ($restricted) {
+                $this->log('restricted resource ' . $ip);
             }
         }
         return $restricted;

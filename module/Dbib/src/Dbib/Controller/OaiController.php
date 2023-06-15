@@ -59,7 +59,7 @@ class OaiController extends \VuFind\Controller\OaiController
      */
     public function authserverAction()
     {
-        return $this->handleOAI('VuFind\OAI\Server\Auth');
+        return $this->handleOAI('VuFind\OAI\Server\Auth::class');
     }
 
     /**

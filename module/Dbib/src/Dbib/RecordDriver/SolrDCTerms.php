@@ -69,7 +69,9 @@ class SolrDCTerms extends SolrDefault
     {
         $url = null;
         $self = $_SERVER['CONTEXT_PREFIX'].'/Record/'.$this->getUniqueId();
-        if ($size == 'large') {
+        if ($size == 'large' && isset($this->fields['rights_str'])) {
+            $url = $self . '/Restricted';
+        } else if ($size == 'large') {
             $url = $self . '/View';
         } else if (empty($this->fields['thumbnail'])) {
             //
@@ -79,7 +81,7 @@ class SolrDCTerms extends SolrDefault
             if (ctype_upper(substr($img,0,1)) || substr($img,0,7)=='file://') {
                 $url = $self . '/SMS?q=' . $img;
                 // $url = $self . '/Stream?q=' . $img;
-                error_log('cover '.$url);
+                error_log('cover '.$size.' '.$url);
             } else { // dev may have a copy : shortcut 
                 $x = strlen($img)>8 ? strpos($img,'/',8) : 0;
                 if (file_exists($_SERVER['DOCUMENT_ROOT'].substr($img,$x))) {
@@ -192,6 +194,8 @@ class SolrDCTerms extends SolrDefault
                 $desc = $this->translate('Online Access');
             } else if (strpos($url, 'https://doi.org')===0) {
                 $desc = substr($url, 8);
+            } else if ($this->isToplevel()) {
+                $desc = $url;
             }
 
             if (isset($this->fields['rights_str'])) {
@@ -203,9 +207,10 @@ class SolrDCTerms extends SolrDefault
                 ];
             } else {
                 $x = strlen($url)>8 ? strpos($url,'/',8) : 0;
-                // if (file_exists($_SERVER['DOCUMENT_ROOT'].substr($url,$x))) {
-                //     $url = substr($url, $x); // dev may have a copy
-                // }
+                if (file_exists($_SERVER['DOCUMENT_ROOT'].substr($url,$x))) {
+                    $url = substr($url, $x); // dev may have a copy
+                    // error_log('url ' . substr($url,$x));
+                }
                 return [ 'url'  => $url, 'desc' => $desc];
             }
         };
@@ -515,6 +520,7 @@ class SolrDCTerms extends SolrDefault
                  . 'xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
                  . '</rdf:RDF>';
         }
+        $rdf = str_replace('&', '&amp;', $rdf);
         return $rdf;
     }
 
@@ -731,11 +737,7 @@ class SolrDCTerms extends SolrDefault
         if (isset($this->fields['license_str'])) {
             $lic = $this->fields['license_str'];
             if (strpos($lic, '/InC/') > 0) {
-                // restricted 
                 return $this->translate('Copyright') . ' ' . $lic;
-            } else if (strpos($lic, '/NoC-OKLR/') > 0) {
-                // digitized material
-                return $this->translate('Dbib::Digitized') .' ('.$lic.')';
             } else {
                 return $lic;
             }

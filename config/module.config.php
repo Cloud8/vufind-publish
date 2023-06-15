@@ -4,13 +4,13 @@ namespace Dbib\Module\Configuration;
 $config = [
     'controllers' => [
         'factories' => [
-            'Dbib\Controller\DbibController' => 'VuFind\Controller\CartControllerFactory',
+            'Dbib\Controller\MetaController' => 'VuFind\Controller\CartControllerFactory',
             'Dbib\Controller\RecordController' => 'VuFind\Controller\AbstractBaseWithConfigFactory',
             'Dbib\Controller\ViewController' => 'VuFind\Controller\AbstractBaseWithConfigFactory',
         ],
         'aliases' => [
             'Record' => 'Dbib\Controller\RecordController',
-            'Dbib' => 'Dbib\Controller\DbibController',
+            'DCTerms' => 'Dbib\Controller\MetaController',
             'View' => 'Dbib\Controller\ViewController',
         ],
     ],
@@ -58,8 +58,8 @@ $dynamicRoutes = [
 ];
 
 $staticRoutes = [
-    'Dbib/Home', 'Dbib/Upload', 'Dbib/Admin', 'Dbib/Edit', 'Dbib/Subject', 
-    'View/Stream',
+    'DCTerms/Home', 'DCTerms/Upload', 'DCTerms/Admin', 'DCTerms/Edit', 
+    'DCTerms/Subject', 'View/Stream',
 ];
 
 // hard coded in module/VuFind/src/VuFind/Route/RouteGenerator.php
@@ -71,11 +71,11 @@ $nonTabRecordActions = [
 ];
 
 $routeGenerator = new \VuFind\Route\RouteGenerator();
-// VuFind 9:
-// $routeGenerator->addNonTabRecordActions($config, $nonTabRecordActions);
+$routeGenerator->addNonTabRecordActions($config, $nonTabRecordActions);
 // VuFind before 9:
 // modify nonTabRecordActions module/VuFind/src/VuFind/Route/RouteGenerator.php
 // $routeGenerator = new \VuFind\Route\RouteGenerator($nonTabRecordActions);
+
 $routeGenerator->addRecordRoutes($config, $recordRoutes);
 $routeGenerator->addDynamicRoutes($config, $dynamicRoutes);
 $routeGenerator->addStaticRoutes($config, $staticRoutes);
