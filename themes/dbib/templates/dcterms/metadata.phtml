@@ -1,0 +1,319 @@
+<?php
+
+$this->layout()->title = 'balla balla'; // $this->form->title;
+$this->layout()->searchbox = false;
+
+$form = $this->form;
+$form->setAttribute('class', 'form-horizontal');
+$form->prepare(); // validates
+
+$errorsHelper  = $this->plugin('formelementerrors');
+$errorsHelper->setMessageOpenFormat('<div class="help-block">')
+    ->setMessageSeparatorString('</div><div class="help-block">')
+    ->setMessageCloseString('</div>');
+
+if (empty($form->admin)) {
+    $form->setAttribute('action', $this->url('dcterms-upload'));
+} else { 
+    $form->setAttribute('action', $this->url('dcterms-edit'));
+}
+
+echo $this->form()->openTag($form);
+?>
+
+<?/* Helper to rename files and add another creator */?>
+<script type="text/javascript">
+    function replace(number) {
+        var node = document.getElementById('opus:fileadmin'+number);
+        var old = document.getElementById('opus:filename'+number).textContent;
+        node.setAttribute('onclick','');
+        node.innerHTML = '<input name="opus:fileadmin" placeholder="'
+            +   old + '" title="New Name" size="34" value=""/>'
+            + '<input name="opus:filename" type="hidden" value="'+old+'"/>';
+        return false;
+    }
+
+    function add_field(term) {
+        // console.log('add_field ' + term);
+        var fieldset = document.getElementsByName(term)[0];
+        var currentCount = fieldset.getElementsByTagName('input').length;
+        var template = fieldset.getElementsByTagName('span')[0].getAttribute('data-template');
+        template = template.replace(/__index__/g, currentCount);
+        var doc = new DOMParser().parseFromString(template, 'text/html');
+        fieldset.appendChild(doc.firstChild);
+        return false;
+    }
+
+    function del_field(term) {
+        // console.log('del_field ' + term);
+        var node = document.getElementsByName(term)[0];
+        var count = node.getElementsByTagName('input').length;
+        if (count>1) {
+            node.lastChild.remove();
+        }
+        return false;
+    }
+
+    function add_creator() {
+        add_field('opus_autor:creator_name');
+        add_field('opus_autor:authorid');
+        return false;
+    }
+
+    function del_creator() {
+        del_field('opus_autor:creator_name');
+        del_field('opus_autor:authorid');
+        return false;
+    }
+</script>
+
+<p>
+<div class="container">
+  <legend><div class="row">
+    <div class="col-sm-8">
+    <?php 
+      if ($form->admin) {
+          $content = $this->url('content-page', ['page'=>'dbib-'.$form->page]);
+	      echo '<a href="'.$content.'" rel="nofollow"';
+          echo ' title="'.$this->translate('Help').'" data-lightbox>';
+          echo '<small><i class="fa fa-fw fa-empire" aria-hidden="true"></i>';
+          echo '</small></a> ';
+      }
+      echo ($this->legend) ?: $this->translate($form->title); 
+	  echo '<a href="'.$this->url('dcterms-upload').'" rel="nofollow">';
+      echo ' # '. $form->page . ' / ' . $form->end;
+      echo '</a> ';
+    ?>
+    </div>
+    <div class="col-sm-4">
+    <button class="btn btn-primary" type="submit" name="submit" value="submit" title="<?=$this->transEsc('Get more information')?>" style="border:0px solid transparent"><?=$this->transEsc('Submit')?></button>
+    <button class="btn btn-secondary" type="submit" name="back" value="back" style="border:0px solid transparent"><?=$this->transEsc('navigate_back')?></button>
+    </div>
+  </div>
+  </legend>
+
+<?php foreach($form->terms as $term) {
+
+	$elem = $form->get($term[0]);
+	$errors = $elem->getMessages();
+	$errorClass = (!empty($errors)) ? ' error' : '';
+    $tab = substr($term[0], 0, strpos($term[0], ':'));
+    //$collection = $elem->getOptions()['count'] ?? 0; // $term[2]=='collection'
+    //$collection = $term[2]=='collection' ? true : false;
+    //$collection = $term[1]=='Collection' ? true : $collection;
+    $collection = in_array($tab, $form->colls);
+
+    if ($form->page != $term[3]) {
+	    if ($term[2] == 'file') {
+		    // echo $this->formFile($elem);
+        } else if (empty($collection)) {
+		    echo $this->formHidden($elem);
+        } else {
+            //$elem->clearAttributes();
+            //$elem->setTargetElement(new Laminas\Form\Element\Hidden());
+            //$elem->setLabel('');
+		    echo $this->formCollection($elem); // hidden by form
+        }
+	    echo PHP_EOL;
+    } else if (!empty($collection)) {
+        // error_log('collection ['.$form->page.'/'.$term[3].']');
+        // https://docs.laminas.dev/laminas-form/v3/collections/
+	    echo '<div class="form-group">'.PHP_EOL;
+        if ($term[0] == 'opus_autor:creator_name') {
+            echo '<span class="col-sm-6">';
+		    echo $this->formCollection($elem);
+		    // echo $this->formElement($elem);
+            echo '</span>';
+            $sub = $form->get('opus_autor:authorid');
+            echo '<span class="col-sm-5">';
+            $href = $this->url('content-page', ['page' => 'authorid']);
+            $link = '<a href="'.$href.'" rel="nofollow" data-lightbox>';
+            $link .= $this->translate($sub->getLabel()).'</a>';
+            $sub->setLabel('');
+            echo '<legend>'.$link.'</legend>';
+		    // echo $this->formCollection($elem);
+		    echo $this->formElement($sub);
+            echo '</span>';
+            echo '<span class="col-sm-1">';
+            echo '<span onclick="return add_creator()" title="Add Author"><i class="fa fa-user-plus" aria-hidden="true"></i>&nbsp;&nbsp;</span>';
+            echo '<span onclick="return del_creator()" title="Delete Author"><i class="fa fa-minus" aria-hidden="true"></i></span>';
+            echo '</span>';
+		    echo $errorsHelper($elem);
+        } else if (substr($term[0],0,10) == 'opus_autor') {
+            //
+        } else {
+            echo '<span class="col-sm-2">';
+            echo '<strong>'.$this->translate($term[1]).'</strong>';
+            echo '</span><span class="col-sm-9">'.PHP_EOL;
+		    echo $this->formCollection($elem);
+		    echo $errorsHelper($elem);
+            echo '</span>'.PHP_EOL;
+            echo '<span class="col-sm-1">';
+            echo '<span onclick="return add_field(\''.$term[0].'\')" title="Add"><i class="fa fa-plus" aria-hidden="true"></i>&nbsp;&nbsp;</span>';
+            echo '<span onclick="return del_field(\''.$term[0].'\')" title="Delete"><i class="fa fa-minus" aria-hidden="true"></i></span>';
+            echo '</span>';
+        }
+	    echo PHP_EOL.'</div>'.PHP_EOL;
+    } else if (empty($term[4])) {
+	    echo '<div class="form-group">'.PHP_EOL;
+        echo '<span class="col-sm-2">';
+        echo '<strong>'.$this->translate($elem->getLabel()).'</strong>';
+        echo '</span><span class="col-sm-10">'.PHP_EOL;
+		echo $this->formElement($elem);
+		echo $errorsHelper($elem);
+        echo '</span>';
+	    echo PHP_EOL.'</div>'.PHP_EOL;
+    } else {
+        $x = strpos($term[4],'::');
+        $w = $x ? 5 : 9;
+        $w = ($x && strlen($term[4])>20) ? 7 : $w;
+        $w = $term[2] == 'box' ? 1 : $w;
+	    echo '<div class="form-group">'.PHP_EOL;
+        echo '<br/><span class="col-sm-2">';
+        echo '<strong>'.$this->translate($elem->getLabel()).'</strong>';
+        echo '</span>';
+	    echo '<span class="'.($x ? 'col-sm-'.$w : 'col-sm-'.$w).'">';
+		echo $this->formElement($elem);
+        echo '</span>';
+	    echo '<span class="'.($x ? 'col-sm-'.(10-$w) : 'col-sm-'.(10-$w)).'">';
+        if (!empty($x)) {
+            echo '<a href="';
+            echo $this->url('content-page', ['page' => substr($term[4], $x+2)]);
+	        echo '" rel="nofollow" data-lightbox>';
+        }
+        echo $this->translate($term[4]);
+        echo $x ? '</a>' : '';
+        echo '</span>';
+		echo $errorsHelper($elem);
+	    echo PHP_EOL.'</div>'.PHP_EOL;
+    }
+
+    // if ($term[0]=='opus:title') {
+    //     var_dump($term);
+    // }
+} ?>
+
+<?php if ($form->page==1) {
+        // error_log('Page one file summary');
+	    echo '<div class="form-element col-sm-9"><br/>';
+		echo '<table class="table table-sm table-striped table-bordered">';
+        $i = 0;
+        if (empty($form->files)) {
+            //
+        } else if (empty(current($form->files)['name'])) {
+			echo '<tr><td>'.$this->translate('no_items_selected').'</td><th>';
+        } else foreach ($form->files as $file) {
+            $fview = $file['url'] ?? ''; 
+            $fname = basename($fview); 
+            $ftime = empty($file['time']) ? ''
+                : '<i class="fa fa-clock-o"></i>&nbsp;'.$file['time'].'&nbsp;';
+		    echo '<tr><th>';
+            if ($form->admin) {
+                echo '<span><a href="'.$fview.'" id="opus:filename'.$i.'">';
+                echo $fname.'</a></span><span id="opus:fileadmin'.$i.'"';
+                echo ' title="'.$this->translate('File Description').'"';
+                echo ' onclick="replace('.$i.')" style="inline; ';
+                echo ' cursor:pointer; float:right;">';
+                echo $ftime.'<i class="fa fa-edit" aria-hidden="true"></i>';
+                echo '</span></th>';
+                $i++;
+            } else if ($form->admin) {
+                echo '<a href="'.$fview.'">'.$fname.'</a></th>';
+            } else {
+                echo $fname.'</th>';
+            }
+			echo '</tr>';
+        }
+		echo '</table>';
+		echo '</div>';
+    }
+?>
+
+<?php if ($form->page == $form->end) { 
+        // Metadata and file summary if this was the last page
+        echo '<table class="table table-sm table-striped table-bordered">';
+        foreach($form->terms as $term) {
+		    if ($term[2]=='file') {
+                continue;
+		    } else if (empty($form->get($term[0])->getValue())) {
+                continue;
+		    } else if (empty($form->get($term[0])->getLabel())) {
+                continue;
+		    } 
+
+            $label = $form->get($term[0])->getLabel();
+            $value = $form->get($term[0])->getValue();
+
+            echo '<tr><td class="col-sm-2">';
+            echo $this->translate($label);
+            echo '</td><td class="col-sm-10">';
+            if (is_array($value)) {
+                var_dump($value);
+                // echo join(', ', $value);
+                // echo current($value);
+		    } else { 
+                echo $value;
+            }
+            echo '</td></tr>';
+		}
+        $cnt = 0;
+        if (empty($form->files)) {
+			echo '<tr><td>'.$this->translate('Dbib::File').' '.$cnt.'</td><th>';
+        } else foreach ($form->files as $file) {
+            $fview = $file['url'] ?? '';
+            $fname = basename($fview); 
+            $cnt++;
+			echo '<tr><td>'.$this->translate('Dbib::File').' '.$cnt.'</td><th>';
+            if ($form->admin) {
+                echo '<a href="'.$fview.'">'.$fname.'</a>';
+            } else {
+                echo $fname;
+            }
+			echo '</td></th>';
+        }
+		echo '</table>';
+	} 
+?>
+
+<?/* submit buttons */?>
+    <br/>
+    <div class="row">
+    <div class="control-group col-sm-7">
+        <div class="controls">
+            <?php if ($form->page==$form->end): ?>
+                <?php if ($form->admin): ?>
+                <button class="btn btn-secondary" type="submit" value="submit"><?=$this->transEsc('Home')?></button>
+                &nbsp;&nbsp;<button class="btn btn-primary" type="submit" name="publish" value="publish"><?=$this->transEsc('Dbib::Publish')?></button>
+                <?php else: ?>
+                <button class="btn btn-primary" type="submit" value="submit"><?=$this->transEsc('Home')?></button>
+                <?php endif; ?>
+            <?php else: ?>
+                <button class="btn btn-primary" type="submit" name="submit" value="submit"><?=$this->transEsc('Submit')?></button>
+                <button class="btn btn-secondary" type="submit" name="back" value="back"><?=$this->transEsc('navigate_back')?></button>
+            <?php endif; ?>
+            &nbsp;&nbsp;
+            <?php if ($form->page==$form->end-1 && $form->admin): ?>
+                <button class="btn btn-secondary" type="submit" name="delete" value="delete"><?=$this->transEsc('Delete')?></button>
+            <?php endif; ?>
+            &nbsp;&nbsp;
+            <?php if ($form->page==$form->end-1): ?>
+                <a href="<?=$this->url('home')?>">
+                <button class="btn btn-secondary" type="button">
+                <?=$this->transEsc('confirm_dialog_no')?>
+                </button></a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <div class="col-sm-5 text-center">
+        <?php // echo $form->get('dcterms:identifier')->getValue(); ?>
+    </div>
+    </div>
+</div>
+</p>
+
+<?php echo $this->form()->closeTag(); ?>
+<script type="text/javascript">
+    $(document).ready(function(){
+      $('#upload').hide();
+    });
+</script>
