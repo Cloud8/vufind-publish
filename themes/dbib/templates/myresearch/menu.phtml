@@ -9,8 +9,12 @@
 <? if ($this->permission()->allowDisplay('access.StreamView')): ?>
 <h3><?=$this->transEsc('Available Functionality')?></h3>
 <div class="myresearch-menu account-menu">
-    <a href="<?=$this->url('dcterms-home')?>"<?=$this->active == 'favorites' ? ' class="active"' : ''?>">
-      <i class="fa fa-fw fa-globe" aria-hidden="true"></i> <?=$this->transEsc('Publication Information')?>
+    <?php if ($this->permission()->allowDisplay('access.DebugMode')): ?>
+    <a href="<?=$this->url('dcterms-admin')?>"<?=$this->active == 'favorites' ? ' class="active"' : ''?>">
+    <?php else: ?>
+    </a>
+    <a href="<?=$this->url('doklief-home')?>"<?=$this->active == 'admin' ? ' class="active"' : ''?>">
+      <i class="fa fa-fw fa-universal-access" aria-hidden="true"></i> <?=$this->transEsc('Dbib::Doklief')?>
     </a>
 </div>
 <? endif; ?>

@@ -952,6 +952,23 @@ class SolrDCTerms extends SolrDefault
         }
         return $doi;
     }
+
+    /**
+     * Get the main authors of the record.
+     *
+     * @return array
+     */
+    /*
+    public function getPrimaryAuthors()
+    {
+        $data = (array)$this->fields['author'];
+        foreach($data as $aut) {
+             error_log($aut);
+        }
+        // return (array)($this->fields['author'] ?? []);
+        return $data;
+    }
+    */
  
     /**
      * Get Google Scholar Tags -- see toolbar.phtml

@@ -27,7 +27,7 @@
 
 /**
  * @title Form Field and Metadata processing 
- * @date 2023-06-14
+ * @date 2023-06-23
  */
 namespace Dbib\Upload;
 
@@ -54,7 +54,7 @@ class MetaForm extends Form
     var $db;
     var $page;
     var $end;
-    var $files; // array of files
+    var $files; 
     var $title;
     var $admin;
     var $mailfrom;
@@ -64,7 +64,7 @@ class MetaForm extends Form
     var $indexer;
 	var $inputFilter;
 	var $publish;
-    var $coll;
+    var $colls;
 
     public function __construct($name = null, $params = [])
     {
@@ -76,28 +76,28 @@ class MetaForm extends Form
         $this->db = $params['db']; // laminas-db
         $this->solr = $params['solr'];
 		$this->setAttribute('enctype', 'multipart/form-data');
+        $this->colls = ['opus_autor', 'opus_coll', 'opus_links', 'opus_files'];
     }
 
     public function create($post = []) {
         $this->terms = (new DCTerms())->create($post, $this->admin);
-        $this->colls = ['opus_autor', 'opus_coll', 'opus_links', 'opus_files'];
-
-        $this->page = empty($post['spec:page']) ? 0 : (int)$post['spec:page'];
-        $this->page = empty($post['back']) ? $this->page+1 : $this->page-1;
-        $this->end = $this->addElements() + 1;
-        $this->files = $post['meta:files'] ?? [];
+        $this->page = empty($post['spec:page']) ? 1 : (int)$post['spec:page'];
+        $this->end = $this->addElements($this->page) + 1;
         $this->setData($post);
 
-        if (empty($post)) {
-            // 
+        if (empty($post['submit']) && empty($post['back'])) {
+            $this->log('zero page ' . $this->page);
+        } else if (empty($post['submit'])) {
+            $this->page = max(1, $this->page-1);
         } else if ($this->isValid()) {
-            $this->get('spec:page')->setValue($this->page);
-            // $this->log('valid page '.$this->page);
-        } else {
-            $this->get('spec:page')->setValue(--$this->page);
-            $this->log('invalid page '.$this->page);
+            $this->page++;
         }
+        $this->replay($this->page);
+        $this->setData($post);
+        $this->get('spec:page')->setValue($this->page);
 
+        $time = $post['opus:date_modified'] ?? date('Y-m-d');
+        $this->files = $this->getFiles($post['opus_files:name']??[], $time);
         return $this;
     }
 
@@ -106,46 +106,37 @@ class MetaForm extends Form
     {
         if (!isset($post['spec:page'])) {
             $this->log("empty page request");
-            return false; // Do not process strange forms
+            return false; // Do not process strange things
         } else if ($this->page > $this->end) {
             return true;
         } else if ($this->page==0) {
-            return true;
+            return false;
         } else if ($this->page==1 && $this->admin) {
             // $this->log('Upload by ' . $post['opus:verification']);
         } else {
-            // $this->get('spec:page')->setValue($this->page--);
             // $this->log('process page '.$this->page.'/'.$this->end);
         }
 
+        $oid = $post['opus:source_opus'] ?? 0;
 		if (isset($post['publish'])) {
-            $oid = $post['opus:source_opus'];
-            $uid = $post['opus:uid'];
+            $uid = $post['opus_publications:uid'] ?: $post['opus:status'];
             if (empty($this->admin)) {
                 // Nothing
             } else if (empty($uid)) {
-                $this->log(' publish one [' . $uid .'] '.$oid);
-                // $this->files = $this->getStorage()->copy($post);
+                $this->log(' publish one [' . $oid .']');
+                $this->files = $this->getStorage()->copy($post);
             } else {
                 $this->log(' publish two [' . $uid .'] '. $oid);
-                // $this->files = $this->getStorage()->copy($post);
+                $this->files = $this->getStorage()->copy($post, $uid);
                 if (substr_count($uid,'/')==2) {
                     $this->getIndexer()->index($oid, $this->files);
-                    $this->log('Index '.$uid.' '.$post['dcterms:identifier']);
+                    $this->log('Index '.$oid.' '.$uid);
                 } else {
                     $this->log('Invalid uid, no index update');
                 }
             }
             return true;
-		} else if (isset($post['callnum'])) {
-            $oid = $post['opus:source_opus'];
-            $uid = $post['opus:uid']; 
-            $uid = $this->createUID($oid, $uid);
-            $this->get('opus:uid')->setValue($uid);
-		    // $this->page->setValue(--$page);
-            return false;
 		} else if (isset($post['delete'])) {
-            $oid = $post['dcterms:identifier'];
 		    $res = $this->getStorage()->delete($post['opus:source_opus']);
             if (empty($oid)) {
                 $oid = 'dbib:'.$post['opus:source_opus'];
@@ -157,40 +148,40 @@ class MetaForm extends Form
             return true;
 		} else if ($this->page == $this->end && isset($post['submit'])) {
 		    $res = $this->save($post);
-            $oid = $post['opus:source_opus'];
-            if ($res==1) {
+            if ($res==1 && empty($oid)) {
                 $this->sendmail($post);
                 $this->log("Submitted ".$oid.' # '.$res);
-            } else if ($res==0 && empty($oid)) {
-                // skip
-            } else if ($res==0 && !is_numeric($oid)) {
-                $this->log(" Bad id ".$oid.' # '.$res);
+            } else if ($res==2) {
+                //
             } else if ($res==3) {
-                $status = $post['opus:status'];
-                $uid = $post['opus:uid'] ?? $post['opus:status'];
-                // $this->log(" Save ".$oid.' ['.$uid.']['.$status.']');
-                // $this->get('opus:uid')->setValue($uid);
+                $this->log(" Save ".$oid.' : '.$res);
             } else {
-                // $this->log(" Save ".$oid.' # '.$res);
+                $this->log(" Bad save ".$oid.' # '.$res);
             }
             return false;
 		} else if (!empty($post['opus:fileadmin'])) {
             $this->files = $this->getStorage()->rename($post['opus:filename'],
                            $post['opus:fileadmin'], $this->files);
-			// $this->page->setValue('1');
 	    } else if (!empty($post['spec:file'][0]['name'])) {
             // file upload -- save file and set oid as a side effect
             // var_dump($post['spec:file']);
-            $oid = $post['opus:source_opus'];
-            $files = $this->getStorage()->saveFile($post['spec:file'], $oid);
+            // $oid = $post['opus:source_opus'];
+            $uid = $post['opus_publications:uid'];
+            $files = $this->getStorage()->saveFile($post['spec:file'], $uid);
             $this->files = array_merge($this->files, $files);
-            $this->log('Submit ' . $oid . ' ' . count($this->files));
-            $this->get('opus:source_opus')->setValue($oid);
+            foreach($files as $file) {
+                $name = 'opus_files:name'.(count($this->files)+1);
+                $elem = new Element\Hidden($name);
+                $elem->setValue($file['name']);
+                $this->get('opus_files:name')->add($elem);
+                $this->log('create ' . $name);
+            }
+            $this->log('Submit ' . $uid . ' ' . count($this->files));
+            // $this->get('opus:source_opus')->setValue($oid);
             // var_dump($this->files);
             return false;
 		} else {
-            // $this->log('GH2023-06 page '.$this->page.'/'.$this->end);
-            // var_dump($this->files);
+            // $this->log('page '.$this->page.'/'.$this->end);
             return false;
 		}
     }
@@ -200,6 +191,8 @@ class MetaForm extends Form
 		$data = $this->getStorage()->read($oid, $this->colls);
 
         // remap some values
+        $data['opus:type'] = $data['opus:typeid'];
+        unset($data['opus:typeid']);
         $data['faculty:nr'] = $data['opus:faculty'] ?? '';
         unset ($data['opus:faculty']);
         $data['opus_inst:inst_nr'] = $data['opus:inst_nr'] ?? '';
@@ -217,46 +210,24 @@ class MetaForm extends Form
             $count++;
         }
 
-        foreach($this->terms as $term) {
-            if (empty($data[$term[0]])) {
-                // $this->log('no '. $term[0]);
-            }
-        }
-
-        foreach($data as $key => $val) {
-            $found = 0;
-            foreach($this->terms as $term) {
-                if ($term[0] == $key) {
-                    $found = 1;
-                }
-            }
-            // if ($key=='opus_autor.gnd' || $key=='opus_autor.orcid') {
-            //     foreach($data[
-            // }
-            if (empty($found)) {
-                // $this->log('zero '. $key);
-                // unset($data[$key]);
-            }
-        }
         return $data;
     }
 
     private function save($data) {
         // remap some values 
-        $data['opus:type'] = $data['opus:typeid'];
-        unset($data['opus:typeid']);
         $data['opus:date_creation'] = strtotime($data['opus:date_creation']);
         $data['opus_diss:date_accepted'] = strtotime($data['opus_diss:date_accepted']);
+        $data['opus:date_modified'] = strtotime($data['opus:date_modified']);
 	    $res = $this->getStorage()->write($this->terms, $data);
         return $res;
     }
 
     private function sendmail($data) {
         $message = "Ein neues Dokument mit\n\n"
-		         . "Archiv-ID: " . $data['source_opus'] .PHP_EOL
-		         . "Titel: " . $data['title'] .PHP_EOL
+		         // . "Archiv-ID: " . $data['opus:source_opus'] .PHP_EOL
+		         . "Titel: " . $data['opus:title'] .PHP_EOL
                  //. "Autor: " . $data['dcterms:creator0'] .PHP_EOL
-                 . "Email: " . $data['verification'] .PHP_EOL
+                 . "Email: " . $data['opus:verification'] .PHP_EOL
 		         // . "IP: " . $_SERVER['REMOTE_ADDR'] .PHP_EOL
 		         . "\nwurde in das Publikationssystem eingestellt.\n";
         $mail = new Mail\Message();
@@ -266,8 +237,7 @@ class MetaForm extends Form
             $this->log('Sending mail to '.$to);
             $mail->addTo(trim($to));
         }
-        // $mail->setSubject('neue Publikation: '.$data['dcterms:creator0']);
-        $mail->setSubject('neue Publikation: '.$data['title']);
+        $mail->setSubject('neue Publikation: '.$data['opus:title']);
         $mail->setBody($message);
         try {
 		    //$transport = new Mail\Transport\Sendmail();
@@ -278,35 +248,65 @@ class MetaForm extends Form
         }
     }
 
-    private function addElements() {
+    private function replay($page = 0) {
+        foreach($this->terms as $term) {
+            $tab = substr($term[0], 0, strpos($term[0], ':'));
+            if (in_array($tab, $this->colls)) {
+                $count = $this->get($term[0])->getCount();
+                $this->remove($term[0]);
+                $elem = $this->getCollection($page, $term);
+                $elem->setCount($count);
+                $this->add($elem);
+            }
+        }
+    }
+
+    private function getCollection($page = 0, $term) {
+        $elem = new Element\Collection($term[0]);
+        if ($page == $term[3]) {
+            if ($term[2] == 'collection') {
+                $elem->setLabel($this->translate($term[1]));
+                $elem->setTargetElement(new Element\Text());
+            } else if (substr($term[2],0,6) == 'SELECT') {
+                $options = $this->retrieve($term[2]);
+                $sub = new Element\Select();
+				$sub->setValueOptions($options);
+                $sub->setEmptyOption('with_selected');
+                $sub->setAttribute('size', '1');
+                // $sub->setLabel('');
+                // $elem->setLabel($term[1]);
+                // $elem->setTargetElement($sub);
+                $elem->setTargetElement($sub);
+            } else if ($term[2] == 'url') {
+                // $elem->setTargetElement(new Element\Url());
+                $elem->setTargetElement(new Element\Text());
+                $elem->setLabel($term[1]);
+                // $elem->setAttribute('size', '299');
+                // $elem->setAttribute('width', '100%');
+            }
+        } else {
+            $elem->setTargetElement(new Element\Hidden());
+        }
+        $elem->setOptions([ 'count' => 1, 'allow_add' => true,
+            'allow_remove' => true, 'should_create_template' => true,
+        ]);
+        // $elem->prepareFieldset();
+        return $elem;
+    }
+
+    private function addElements($page = 0) {
         $max = 0;
         foreach($this->terms as $term) {
             $max = $term[3] > $max ? $term[3] : $max;
             $tab = substr($term[0], 0, strpos($term[0], ':'));
             $elem = null;
-            if (in_array($tab, $this->colls)) {
-                $elem = new Element\Collection($term[0]);
-                if ($this->page == $term[3]) {
-                    if ($term[2] == 'collection') {
-                        $elem->setLabel($term[1]);
-                        $elem->setTargetElement(new Element\Text());
-                    } else if (substr($term[2],0,6) == 'SELECT') {
-                        $options = $this->retrieve($term[2]);
-                        $sub = new Element\Select();
-				        $sub->setValueOptions($options);
-                        $sub->setEmptyOption('with_selected');
-                        $sub->setAttribute('size', '1');
-                        // $sub->setLabel('');
-                        // $elem->setLabel($term[1]);
-                        $elem->setTargetElement($sub);
-                    }
-                } else {
-                    $elem->setTargetElement(new Element\Hidden());
-                }
-                $elem->setOptions([
-                    'count' => 1, 'allow_add' => true,
-                    'allow_remove' => true, 'should_create_template' => true,
-                ]);
+            if ($term[2] == 'file') {
+                $elem = new Element\File($term[0]);
+                $elem->setLabel($term[1])
+                    ->setAttribute('id', $term[0])
+                    ->setAttribute('multiple', true);
+            } else if (in_array($tab, $this->colls)) {
+                $elem = $this->getCollection($page, $term);
             } else if ($term[2] == 'text') {
                 $elem = new Element\Textarea($term[0]);
                 $elem->setLabel($term[1]);
@@ -323,6 +323,9 @@ class MetaForm extends Form
                 $elem->setLabel($term[1]);
                 $elem->setCheckedValue(true);
                 $elem->setUncheckedValue(false);
+            } else if ($term[2] == 'url') {
+                $elem = new Element\Url($term[0]);
+                $elem->setLabel($term[1]);
             } else if (substr($term[2],0,6) == 'SELECT') {
                 $options = $this->retrieve($term[2]);
                 $elem = new Element\Select($term[0]);
@@ -350,15 +353,10 @@ class MetaForm extends Form
             } else if ($term[2] == 'email') {
                 $elem = new Element\Email($term[0]);
                 $elem->setLabel($term[1]);
-            } else if ($term[2] == 'file') {
-                $elem = new Element\File($term[0]);
-                $elem->setLabel($term[1])
-                    ->setAttribute('id', $term[0])
-                    ->setAttribute('multiple', true);
             }
-            // if (!empty($elem)) {
+            if (!empty($elem)) {
                 $this->add($elem);
-            // }
+            }
         }
         return $max;
     }
@@ -376,18 +374,15 @@ class MetaForm extends Form
             $this->inputFilter = new InputFilter\InputFilter();
         }
 
-        $page = $this->get('spec:page')->getValue(); // isValid
         foreach($this->terms as $term) {
             if ($term[2]=='file') {
                 // $test = new InputFilter\FileInput($term[0]);
                 // $test->setRequired(true);
                 // $this->inputFilter->add($test);
-            } else if ($term[3]==$page) {
+            } else if ($term[3]==$this->page) {
                 $req = empty($term[4]) ? false : $term[4]===' ';
                 $req = $term[2]=='box' ? true : $req;
-                $req = $req ? !$this->admin : $req;
-                // if ($req) error_log('validate '.$term[0]
-                //     .' page '.$this->page.': ' .$page);
+                // $req = $req ? !$this->admin : $req;
                 $this->inputFilter->add(['name' => $term[0], 'required' => $req]);
             } else {
                 $this->inputFilter->add(['name' => $term[0], 'required' => false]);
@@ -428,21 +423,12 @@ class MetaForm extends Form
         return $data;
     }
 
-    // Find uid - url part behind server url
-    private function createUID($oid, $uid) {
-        if (empty($oid)) {
-           $this->log('Unexpected createUID [' . $oid . ']');
-        } else if (empty($uid) || $uid=='neu') {
-           $uid = $this->files[0]['uid'] ?? 'dbib/'.date('Y').'/'.$oid;
-           $this->log('GH2022-10 createUID one [' . $uid . '] '.$oid);
-        } else if (substr_count($uid,'/')==2) {
-           $this->log('GH2022-10 createUID two [' . $uid . '] '.$oid);
-           $this->get('opus:uid')->setAttribute('readonly', 'true');
-        } else {
-           $this->log('GH2022-10 createUID three [' . $uid . '] '.$oid);
-           $uid = null;
+    private function getFiles($names, $time) {
+        $files = [];
+        foreach($names as $file) {
+            $files[] = ['name' => $file, 'time' => $time];
         }
-        return $uid;
+        return $files;
     }
 
     private function log(String $msg) {

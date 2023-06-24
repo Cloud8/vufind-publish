@@ -45,9 +45,14 @@ class DCTerms {
         $this->terms = [
             ['spec:page', 'End Page', 'int', 0],
             ['opus:source_opus', 'Identifier', 'int', 0],
+            ['opus_files:name', 'File Description', 'collection', 0],
+            ['opus_publications:uid', 'Access URL', 'varchar(20)', 0],
+            ['opus_publications:urn', 'URN', 'varchar(40)', 0],
+            ['opus_domain:url', 'URL', 'varchar(255)', 0],
+            ['opus:date_modified', 'Modification Date', 'date', 0],
 
-            ['opus:typeid', 'Document Type',
-                'SELECT typeid, type FROM resource_type', 1, ' '],
+            ['opus:type', 'Document Type',
+                'SELECT typeid type, type label FROM resource_type', 1, ' '],
             ['faculty:nr', 'Faculty',
                 'SELECT nr, name from faculty order by name', 1],
             ['opus:verification', 'Email Address', 'email', 1],
@@ -99,10 +104,13 @@ class DCTerms {
             // ['opus:domain', 'Range', 'SELECT id, name '
             //  .'from opus_domain where domain='.$this->domain.' order by id',
             //   3, true, ['Range', 'opus:status', 'ref2']],
-
             ['opus:status', 'Status', 'varchar(20)', ($admin ? 4 : 0)],
-            //['opus_links:name', 'Links', 'collection', 3],
-            //['opus_links:link', 'Links', 'collection', 3],
+
+            ['opus_links:tag', 'URL', 'SELECT distinct tag, name from '
+                .' opus_links where tag!="iiif"', ($admin ? 4 : 0)],
+            ['opus_links:link', 'Link', 'url', ($admin ? 4 : 0)],
+            // ['opus_links:name', 'URL', 'url', ($admin ? 4 : 0)], 
+
             //['opus:physical', 'Physical Description', 'text', 0, false],
             //['opus:research', null, 'text', 3, false, 'Research data'],
             //['opus:bem_extern', 'Comments', 'text', 0],

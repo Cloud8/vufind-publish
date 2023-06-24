@@ -137,17 +137,12 @@ class MetaController extends \VuFind\Controller\AbstractBase
                 $request->getFiles()->toArray()
             );
 
-            // $meta = $this->container->offsetGet('meta');
-            // $post['meta:files'] = $meta['meta:files'] ?? []; 
-            $post['meta:files'] = $this->container->offsetGet('meta');
-
+            // $post['meta:files'] = $this->container->offsetGet('meta');
             $form = (new MetaForm('DCTerms', $options))->create($post); 
             if ($form->process($post)) {
                 $this->redirect()->toRoute('dcterms-admin');
             }
-            // $meta['meta:files'] = $form->files;
-            // $this->container->meta = $meta;
-            $this->container->meta = $form->files;
+            // $this->container->meta = $form->files;
             $view->setTemplate('dcterms/metadata');
         } else if ($request->isGet()) { 
             // forwarded from RecordController
@@ -160,7 +155,7 @@ class MetaController extends \VuFind\Controller\AbstractBase
                 return $this->redirect()->toRoute('dcterms-admin');
             } else {
                 error_log("edit get request " . $oid);
-                $form = (new MetaForm('Document Type', $options))->create(); 
+                $form = new MetaForm('Document Type', $options); 
                 $data = $form->read($oid);
                 if (empty($data)) {
                     error_log('MetaController read failed ' . $oid);
@@ -168,9 +163,7 @@ class MetaController extends \VuFind\Controller\AbstractBase
                     $view->setTemplate('error/unavailable');
                 } else {
                     $form->create($data);
-                    // $meta['meta:files'] = $form->files;
-                    // $this->container->meta = $meta;
-                    $this->container->meta = $form->files;
+                    // $this->container->meta = $form->files;
                     $view->setTemplate('dcterms/metadata');
                 }
             }
@@ -208,16 +201,17 @@ class MetaController extends \VuFind\Controller\AbstractBase
 
             // $meta = $this->container->offsetGet('meta');
             // $post['meta:files'] = $meta['meta:files'] ?? []; 
-            $this->container->meta = $form->files;
+            // $this->container->meta = $form->files;
             $form = new MetaForm('DCTerms', $this->connect()); 
             $form->create($post);
             if ($form->process($post)) {
                 error_log("MetaController Overdrive " . $form->end);
                 return $this->redirect()->toRoute('home');
             }
-            $this->container->meta = $form->files;
+            // $this->container->meta = $form->files;
         } else {
-            $this->container->meta = [];
+            // $this->container->meta = [];
+            $form = new MetaForm('DCTerms', $this->connect()); 
             if ($this->getUser()) {
                 error_log("upload get request " . $this->getUser()->email);
                 $data['opus:verification'] = $this->getUser()->email;

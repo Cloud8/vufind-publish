@@ -1,6 +1,6 @@
 <?php
 
-$this->layout()->title = 'balla balla'; // $this->form->title;
+$this->headTitle($this->form->title);
 $this->layout()->searchbox = false;
 
 $form = $this->form;
@@ -21,7 +21,7 @@ if (empty($form->admin)) {
 echo $this->form()->openTag($form);
 ?>
 
-<?/* Helper to rename files and add another creator */?>
+<?/* Helper to rename files and add fields */?>
 <script type="text/javascript">
     function replace(number) {
         var node = document.getElementById('opus:fileadmin'+number);
@@ -65,6 +65,18 @@ echo $this->form()->openTag($form);
         del_field('opus_autor:authorid');
         return false;
     }
+
+    function add_link() {
+        add_field('opus_links:tag');
+        add_field('opus_links:link');
+        return false;
+    }
+
+    function del_link() {
+        del_field('opus_links:tag');
+        del_field('opus_links:link');
+        return false;
+    }
 </script>
 
 <p>
@@ -98,10 +110,8 @@ echo $this->form()->openTag($form);
 	$errors = $elem->getMessages();
 	$errorClass = (!empty($errors)) ? ' error' : '';
     $tab = substr($term[0], 0, strpos($term[0], ':'));
-    //$collection = $elem->getOptions()['count'] ?? 0; // $term[2]=='collection'
-    //$collection = $term[2]=='collection' ? true : false;
-    //$collection = $term[1]=='Collection' ? true : $collection;
     $collection = in_array($tab, $form->colls);
+    $collection = $collection && $term[2] !== 'file';
 
     if ($form->page != $term[3]) {
 	    if ($term[2] == 'file') {
@@ -109,14 +119,11 @@ echo $this->form()->openTag($form);
         } else if (empty($collection)) {
 		    echo $this->formHidden($elem);
         } else {
-            //$elem->clearAttributes();
-            //$elem->setTargetElement(new Laminas\Form\Element\Hidden());
-            //$elem->setLabel('');
 		    echo $this->formCollection($elem); // hidden by form
+		    // echo $this->formHidden($elem); 
         }
 	    echo PHP_EOL;
     } else if (!empty($collection)) {
-        // error_log('collection ['.$form->page.'/'.$term[3].']');
         // https://docs.laminas.dev/laminas-form/v3/collections/
 	    echo '<div class="form-group">'.PHP_EOL;
         if ($term[0] == 'opus_autor:creator_name') {
@@ -140,7 +147,26 @@ echo $this->form()->openTag($form);
             echo '</span>';
 		    echo $errorsHelper($elem);
         } else if (substr($term[0],0,10) == 'opus_autor') {
+            // see above
+        } else if ($term[2] == 'file') {
+		    echo $this->formFile($elem);
+        } else if ($term[0] == 'opus_links:link') {
             //
+        } else if ($term[0] == 'opus_links:tag') {
+            echo '<span class="col-sm-2"><strong>'.$term[1].'</strong></span>';
+            echo '<span class="col-sm-3">';
+		    echo $this->formCollection($elem);
+		    // echo $this->formElement($elem);
+            echo '</span>';
+            $sub = $form->get('opus_links:link');
+            $sub->setLabel('');
+            echo '<span class="form-element col-sm-6"> ';
+		    echo $this->formElement($sub);
+            echo '</span>';
+            echo '<span class="col-sm-1">';
+            echo '<span onclick="return add_link(\''.$term[0].'\')" title="Add"><i class="fa fa-plus" aria-hidden="true"></i>&nbsp;&nbsp;</span>';
+            echo '<span onclick="return del_link()" title="Delete URL"><i class="fa fa-minus" aria-hidden="true"></i></span>';
+            echo '</span>';
         } else {
             echo '<span class="col-sm-2">';
             echo '<strong>'.$this->translate($term[1]).'</strong>';
@@ -150,7 +176,11 @@ echo $this->form()->openTag($form);
             echo '</span>'.PHP_EOL;
             echo '<span class="col-sm-1">';
             echo '<span onclick="return add_field(\''.$term[0].'\')" title="Add"><i class="fa fa-plus" aria-hidden="true"></i>&nbsp;&nbsp;</span>';
-            echo '<span onclick="return del_field(\''.$term[0].'\')" title="Delete"><i class="fa fa-minus" aria-hidden="true"></i></span>';
+            if (substr($term[2],0,6) == 'SELECT') {
+                // cannot delete selects this way
+            } else {
+                echo '<span onclick="return del_field(\''.$term[0].'\')" title="Delete"><i class="fa fa-minus" aria-hidden="true"></i></span>';
+            }
             echo '</span>';
         }
 	    echo PHP_EOL.'</div>'.PHP_EOL;
@@ -160,8 +190,8 @@ echo $this->form()->openTag($form);
         echo '<strong>'.$this->translate($elem->getLabel()).'</strong>';
         echo '</span><span class="col-sm-10">'.PHP_EOL;
 		echo $this->formElement($elem);
-		echo $errorsHelper($elem);
         echo '</span>';
+		// echo $errorsHelper($elem);
 	    echo PHP_EOL.'</div>'.PHP_EOL;
     } else {
         $x = strpos($term[4],'::');
@@ -184,43 +214,44 @@ echo $this->form()->openTag($form);
         echo $this->translate($term[4]);
         echo $x ? '</a>' : '';
         echo '</span>';
-		echo $errorsHelper($elem);
+		echo '<br/><span class="col-sm-7">'.$errorsHelper($elem),'</span>';
 	    echo PHP_EOL.'</div>'.PHP_EOL;
     }
-
-    // if ($term[0]=='opus:title') {
-    //     var_dump($term);
-    // }
 } ?>
 
 <?php if ($form->page==1) {
         // error_log('Page one file summary');
+	    $uid = $form->get('opus_publications:uid')->getValue();
+	    // $url = $form->get('opus_domain:url')->getValue();
 	    echo '<div class="form-element col-sm-9"><br/>';
 		echo '<table class="table table-sm table-striped table-bordered">';
         $i = 0;
         if (empty($form->files)) {
             //
         } else if (empty(current($form->files)['name'])) {
-			echo '<tr><td>'.$this->translate('no_items_selected').'</td><th>';
+		    echo '<tr><td>'.$this->translate('no_items_selected').'</td><th>';
         } else foreach ($form->files as $file) {
-            $fview = $file['url'] ?? ''; 
-            $fname = basename($fview); 
-            $ftime = empty($file['time']) ? ''
+            // $view = $file['url'] ?? ''; 
+            // $fname = basename($view); 
+            $name = $file['name']; 
+            // $view = $url.'/'.$uid.'/'.$name; 
+            $view = '/'.$uid.'/'.$name; 
+            $time = empty($file['time']) ? ''
                 : '<i class="fa fa-clock-o"></i>&nbsp;'.$file['time'].'&nbsp;';
 		    echo '<tr><th>';
             if ($form->admin) {
-                echo '<span><a href="'.$fview.'" id="opus:filename'.$i.'">';
-                echo $fname.'</a></span><span id="opus:fileadmin'.$i.'"';
+                echo '<span><a href="'.$view.'" id="opus:filename'.$i.'">';
+                echo $name.'</a></span><span id="opus:fileadmin'.$i.'"';
                 echo ' title="'.$this->translate('File Description').'"';
                 echo ' onclick="replace('.$i.')" style="inline; ';
                 echo ' cursor:pointer; float:right;">';
-                echo $ftime.'<i class="fa fa-edit" aria-hidden="true"></i>';
+                echo $time.'<i class="fa fa-edit" aria-hidden="true"></i>';
                 echo '</span></th>';
                 $i++;
             } else if ($form->admin) {
-                echo '<a href="'.$fview.'">'.$fname.'</a></th>';
+                echo '<a href="'.$view.'">'.$name.'</a></th>';
             } else {
-                echo $fname.'</th>';
+                echo $name.'</th>';
             }
 			echo '</tr>';
         }
@@ -248,7 +279,6 @@ echo $this->form()->openTag($form);
             echo $this->translate($label);
             echo '</td><td class="col-sm-10">';
             if (is_array($value)) {
-                var_dump($value);
                 // echo join(', ', $value);
                 // echo current($value);
 		    } else { 

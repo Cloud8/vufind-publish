@@ -32,19 +32,18 @@
  *           is a pair of path and url from database domain table.
  *
  * @created 2016-11-16
- * @date 2022-06-15
+ * @date 2022-06-19
  */
 namespace Dbib\Upload;
 
 class DataStorage {
 
-    var $about; // sql
+    var $about; // sql queries
     var $db;
     var $domain;
     var $path;
     var $docbase;
     var $temp;
-    var $auto;
     var $urn_prefix;
     var $doi_prefix;
 
@@ -54,20 +53,13 @@ class DataStorage {
         $this->domain = $params['domain'];
         $this->urn_prefix = $params['urn_prefix'] ?? null;
         $this->doi_prefix = $params['doi_prefix'] ?? null;
-        $sql = 'SELECT concat(path, base) path, base from opus_domain where id='
-             . $params['domain'];
+        $sql = 'SELECT path, base from opus_domain where id='.$params['domain'];
         $row = $this->db->query($sql)->execute()->current();
         $this->path = empty($row['path']) ? sys_get_temp_dir() : $row['path'];
-        if (empty($row['base'])) {
-            error_log("No Storage for ".$this->path);
-        } else {
-            $this->docbase = $row['base'];
-        }
-
+        $this->docbase = $row['base'] ?? '/'.str_shuffle('autobib');
         $this->urn_prefix = $params['urn_prefix'] ?? null;
         $this->doi_prefix = $params['doi_prefix'] ?? null;
         $this->temp = '/volltexte/incoming/';
-        $this->auto = '/volltexte/auto/';
     }
 
     public function read($id, $colls = []) {
@@ -99,7 +91,7 @@ class DataStorage {
                 $x = strpos($sql, 'from ') + 5;
                 $table = substr($sql, $x, strpos($sql, ' ', $x)-$x);
                 if ($tid) {
-                    $sql = str_replace('from opus', 'from temp', $sql);
+                    $sql = str_replace('from opus ', 'from temp ', $sql);
                     $sql = str_replace('opus_diss', 'temp_diss', $sql);
                     $sql = str_replace('opus_inst', 'temp_inst', $sql);
                     $sql = str_replace('opus_autor', 'temp_autor', $sql);
@@ -123,19 +115,16 @@ class DataStorage {
             }
         }
 
-        if (empty($urn)) {
-            $data['meta:files'] = $this->readFiles($oid);
-        } else {
-            $data['meta:files'] = $this->readFilesDB($oid);
-            // $data['meta:files'][] = $data['opus_files:name'];
+        if (empty($data['opus_files:name'])) {
+            $files = $this->readFiles($oid);
+            $uid = $files[0]['uid'] ?? ''; 
+            foreach($files as $file) {
+                $data['opus_files:name'][] = $file['name']; 
+                $data['opus:date_modified'] = $file['time']; 
+            }
+            $data['opus_publications:uid'] = $uid;
+            // $this->log('file base [' . $uid . ']'); 
         }
-
-        if (empty($data['meta:files'])) {
-            error_log('zero files ['.$id.']');
-        } else foreach ($data['meta:files'] as $file) {
-            // error_log('read file ['.($file['name'] ?? $file['url']).']');    
-        }
-
         return $data;
     }
 
@@ -143,14 +132,13 @@ class DataStorage {
         2 for temp updates, 3 for opus updates */
     public function write($terms, $data) {
         // $json = json_encode($data);
-        // file_put_contents($this->path.'/data.json', $json);
         $upd = 0;
         $oid = $data['opus:source_opus'];
         $data = $this->cleanData($terms, $data);
 
         if (empty($this->db)) {
             $this->log("Storage form save : no database");
-        } else if (empty($oid) && empty($data['dcterms:title'])) {
+        } else if (empty($oid) && empty($data['opus:title'])) {
             $this->log("Storage form save : empty submission");
         } else if (empty($oid)) { // metadata only, no oid created until now
             $data['opus:source_opus'] = $this->getIdentifier();
@@ -170,17 +158,17 @@ class DataStorage {
     }
 
     /** copy from temp to opus */
-    public function copy($data) {
+    public function copy($data, $uid = null) {
         $oid = $data['opus:source_opus'];
-        $res = $this->test($oid);
+        $upd = $this->test($oid);
         // test returns 0: error, 1: new record, 2: temp, 3: opus
-        $this->log('DataStorage copy ' . $oid . '[' . $res . ']');
-        if ($res==2) { 
+        $this->log('DataStorage copy ' . $oid . '[' . $upd . ']');
+        if ($upd==2) { 
             // OK
-        } else if ($res==3) { 
-            // published object :: update publications
-            $urn = $data['dcterms:identifier'];
-            $this->publish($oid, $data['opus:uid'], $urn);
+        } else if ($upd==3) { 
+            // update publications
+            $urn = $data['opus_publications:urn'];
+            $this->publish($oid, $uid, $urn);
             return $this->readFiles($oid);
         } else {
             return false;
@@ -225,7 +213,7 @@ class DataStorage {
         // remove entry from temp tables
         $this->remove($oid);
 
-        $files = $this->copyFiles($data);
+        $files = $this->copyFiles($oid);
         $this->cover($files);
         return $files; // return $files to directly index this record 
     }
@@ -237,9 +225,9 @@ class DataStorage {
         foreach($res as $row) {
 		    $format[] = $row['extension'];
 		}
-        $result = $this->db->query($sql)->execute();
-        for ($i=0; $i<$result->count(); $result->next(), $i++) {
-            $format[] = $result->current()['extension'];
+        $res = $this->db->query($sql)->execute();
+        for ($i=0; $i<$res->count(); $res->next(), $i++) {
+            $format[] = $res->current()['extension'];
         }
         $format[] = 'old';
         $ext = pathinfo($new, PATHINFO_EXTENSION);
@@ -270,8 +258,8 @@ class DataStorage {
     public function delete($oid) {
         // test returns 0: error, 1: upload records, 2: temp, 3: opus
         $b = false;
-        $res = $this->test($oid);
-        if ($res == 2) {
+        $upd = $this->test($oid);
+        if ($upd == 2) {
             $sql = 'SELECT source_opus from temp where status="deleted"'
                  . ' and source_opus='.$oid;
             //$row = $this->db->query($sql)->execute()->getResource()->fetch();
@@ -281,7 +269,7 @@ class DataStorage {
                     . ', date_modified=UNIX_TIMESTAMP()'
                     . ' where source_opus='.$oid;
                 $pdo = $this->db->query($sql)->execute();
-                $this->log("DataStorage delete temp " . $oid . ' # ' .$res);
+                $this->log("DataStorage delete temp " . $oid . ' # ' .$upd);
             } else { // finally remove entry from temp tables
                 $res = $this->remove($oid);
                 $this->log("DataStorage remove temp " . $oid . ' # ' .$res);
@@ -290,7 +278,7 @@ class DataStorage {
             $sql = 'DELETE from opus_publications where oid='.$oid;
             $pdo = $this->db->query($sql)->execute();
             $b = true;
-        } else if ($res == 3) {
+        } else if ($upd == 3) {
             $this->unpublish($oid); // back to temp
             $sql = 'DELETE p, f from opus_publications p left join opus_files f'
                  .' on p.oid=f.oid where p.oid='.$oid;
@@ -303,7 +291,7 @@ class DataStorage {
     }
 
     /** returns file docbase on success, otherwise null */
-    public function saveFile($files, &$oid = null) {
+    public function saveFile($files, $uid = null) {
         $data = [];
         if (empty($files)) {
             $this->log('No Storage -- no file.');
@@ -316,12 +304,17 @@ class DataStorage {
         }
 
 		$sql = "SELECT extension from format where diss_format=1";
-        $result = $this->db->query($sql)->execute();
-        for ($i=0; $i<$result->count(); $result->next(), $i++) {
-            $format[] = $result->current()['extension'];
+        $res = $this->db->query($sql)->execute();
+        for ($i=0; $i<$res->count(); $res->next(), $i++) {
+            $format[] = $res->current()['extension'];
         }
 
-        $path = null;
+        if (empty($uid)) {
+			$oid = $this->getIdentifier();
+		    $uid = $this->docbase.$this->temp.date('Y').'/'.$oid;
+        }
+		$path = $this->path.'/'.$uid;
+
         foreach($files as $file) {
             if (empty($file['name'])) {
 			    continue;
@@ -331,100 +324,55 @@ class DataStorage {
 				$this->log("No Storage -- bad file ".$oid." # ".$ext);
 			    continue;
 			}
-			$year = date('Y');
-            if (empty($oid)) {
-				$oid = $this->getIdentifier();
-			} else { // check file path, we may already have one
-                for ($y=$year-3; $y<=$year; $y++) {
-			        if (file_exists($this->path.$this->temp.$y.'/'.$oid)) {
-					    $year = $y;
-                        break;
-                    } 
-                }
-            }
-		    $path = $this->path.$this->temp.$year.'/'.$oid;
             $fname = $file['name'];
            
             // pdf to pdf folder and everything else to data folder
             $target = $ext=='pdf' ? $ext : 'data';
-            if (!is_dir($path.'/'.$target)) {
+            if (!is_dir($path.'/'.$target)) try {
                 mkdir($path.'/'.$target, 0777, true);
-            } // copy submitted file
+            } catch(\Exception $ex) {
+                $this->log('No mkdir '.$path.'/'.$target.' '.$ex->getMessage());
+            }
+            // copy submitted file
             $fpath = $path.'/'.$target.'/'.$fname;
-            $url = $this->docbase.$this->temp.$year.'/'.$oid
-                 .'/'.$target.'/'.$fname;
             if (empty($file['tmp_name'])) {
                 error_log('Bad file ?? ' . $file['name']);
-            } else {
+            } else if (is_writable($path)) try {
 			    copy($file['tmp_name'], $fpath);
-                error_log('New file ' . $file['name']);
-                $data[] = [ 'path' => $fpath, 'name' => $fname, 
-                        'url' => $url, 'size' => $file['size'] ];
+                $ftime = date ('Y-m-d', filectime($fpath));
+                $this->log('New file ' . $file['name'] . ' ' . $path);
+                $data[] = ['name' => $fname, 'time' => $ftime, 'uid' => $uid];
+            } catch(\Exception $ex) {
+                $this->log('No access '.$path.' '.$ex->getMessage());
             }
 		}
         return $data;
     }
 
-    /** return array of file urls */
-    private function readFilesDB($oid) {
-        $files = [];
-        $sql = 'SELECT concat("/",uid,"/",name) url, name'
-             . ' from opus_files f, opus_publications p'
-             . ' where f.oid=p.oid and f.oid='.$oid;
-        $rows = $this->db->query($sql)->execute();
-        foreach($rows as $row) {
-            $files[] = ['name' => $row['name'], 'url' => $row['url']];
-        }
-        return $files;
-    }
-
     /** return array of file information */
     private function readFiles($oid) {
+        $data = [];
         $year = date('Y');
-        $path = $this->path . '/' . $year . '/' . $oid;
-        $url = $this->docbase . '/' . $year . '/' . $oid;
-        $sub = substr($this->docbase, strrpos($this->docbase,'/')+1);
-        $uid = $sub . '/' . $year . '/' . $oid;
-        for ($i=4; $i>0 && !file_exists($path); $i--) {
-			if (file_exists($this->path.$this->temp.'/'.$year.'/'.$oid)) {
-                $path = $this->path . $this->temp . $year . '/' . $oid;
-                $url = $this->docbase . $this->temp . $year . '/' . $oid;
-                break;
-			} else {
-			    $year--;
-                $path = $this->path . '/' . $year . '/' . $oid;
-                $url = $this->docbase . '/' . $year . '/' . $oid;
-                $uid = $sub . '/' . $year . '/' . $oid;
-			}
+        $uid = $this->docbase . $this->temp . $year . '/' . $oid;
+        $path = $this->path . $uid;
+        for ($i=4; $i>0 && !file_exists($path); $i--, $year--) {
+            $uid = $this->docbase . $this->temp . $year . '/' . $oid;
+            $path = $this->path . $uid;
 		}
 
-        // Check auto folder
-        if (!file_exists($path) && file_exists($this->path.$this->auto)) {
-            $year = date('Y');
-            for ($i=1; $i>0 && !file_exists($path); $i--) {
-                $path = $this->path . $this->auto . $year . '/' . $oid;
-                $url = $this->docbase . $this->auto . $year . '/' . $oid;
-                $year--;
-            }
+        $year = date('Y');
+        for ($i=4; $i>0 && !file_exists($path); $i--, $year--) {
+            $uid = $this->docbase . '/' . $year . '/' . $oid;
+            $path = $this->path . $uid;
         }
 
         if (file_exists($path)) {
-            // OK 
+            // $this->log('read files ' . $path);
         } else {
-            return [];
+            return $data;
         }
 
-		$sql = 'SELECT extension from format where diss_format=1';
-        $result = $this->db->query($sql)->execute();
-        for ($i=0; $i<$result->count(); $result->next(), $i++) {
-            $format[] = $result->current();
-        }
-		$result = [];
-        $format[] = ['extension' => 'data','data'];
-
-        foreach ($format as $extension) {
-            // $ext = $extension[0];
-            $ext = $extension['extension'];
+        foreach (['pdf', 'data'] as $ext) {
             $dir = $path.'/'.$ext;
             if (!file_exists($dir)) {
                 continue;
@@ -440,15 +388,12 @@ class DataStorage {
                 } else {
                     $fpath = $dir.'/'.$file;
                     $ftime = date ('Y-m-d', filectime($fpath));
-                    $result[] = [ 'name' => $ext . '/' . $file,
-                                  'time' => $ftime,
-                                  'path' => $fpath,
-                                  'uid' => $uid,
-                                  'url' => $url . '/'. $ext .'/'. $file ];
+                    $data[] = [ 'name' => $ext . '/' . $file,
+                        'time' => $ftime, 'uid' => substr($uid,1) ];
                 }
             }
         }
-        return $result;
+        return $data;
     }
 
     // Legacy support : file lookup 
@@ -474,7 +419,7 @@ class DataStorage {
             $this->log('No data, no log');
         } else {
             $oid = $data['opus:source_opus'];
-            $path = $this->path . $this->temp . date('Y') . '/' . $oid;
+            $path = $this->path . $this->docbase . $this->temp . date('Y') . '/' . $oid;
             if (file_exists($path)) {
                 $path = $path . '/meta-' . $oid . '.log';
                 file_put_contents($path, print_r($data, true));
@@ -486,24 +431,24 @@ class DataStorage {
 
     private function getIdentifier() {
         // $res = $this->db->query("LOCK TABLES seq_temp WRITE")->execute();
-        $upd = "update seq_temp set id=LAST_INSERT_ID(id+1)";
-        $res = $this->db->query($upd)->execute()->count();
+        $sql = "UPDATE seq_temp set id=LAST_INSERT_ID(id+1)";
+        $cnt = $this->db->query($sql)->execute()->count();
         $sql = "SELECT max(id) id from seq_temp";
-        $result = $this->db->query($sql)->execute();
+        $res = $this->db->query($sql)->execute();
         $row = null;
         $oid = 0;
 
-        if (empty($result)) {
+        if (empty($res)) {
             //
         } else {
-            $row = $result->current();
+            $row = $res->current();
             $oid = empty($row) ? 0 : $row['id'];
         }
 
         if (empty($oid)) {
             $oid = 1; // start over
-            $upd = "insert into seq_temp values(1)";
-            $res = $this->db->query($upd)->execute()->count();
+            $sql = "INSERT into seq_temp values(1)";
+            $res = $this->db->query($sql)->execute()->count();
         }
         // $res = $this->db->query("UNLOCK TABLES")->execute();
         return $oid;
@@ -565,12 +510,7 @@ class DataStorage {
     /** Copy back from opus to temp */
     private function unpublish($oid) {
         $year = date('Y');
-        $files = $this->readFiles($oid);
-        if (!empty($files[0]['path'])) { 
-            // PHP 7: $year = basename(dirname($files[0]['path'],3));
-            $year = basename(dirname(dirname(dirname($files[0]['path']))));
-        }
-        $source = $this->path . '/' . $year . '/' . $oid;
+        $source = $this->path . $this->docbase . '/' . $year . '/' . $oid;
         $target = $this->path . $this->temp . $year . '/' . $oid;
 		if (file_exists($source) && file_exists($target)) {
             // both exists -- skip hard delete
@@ -637,45 +577,6 @@ class DataStorage {
 
     }
 
-    // published records can have additional links 
-    private function saveLinks($oid, $data, $upd) {
-        if ($upd==3) {
-            if (!empty($data['opus:details'])) {
-                $link = $data['opus:details'];
-                $name = 'Bibliographic Details';
-                $tag = 'desc';
-                $this->saveOpusLink($oid, $link, $name, $tag);
-            }
-            if (!empty($data['opus:research'])) {
-                $link = $data['opus:research'];
-                $name = 'Research data';
-                $tag = 'item';
-                $this->saveOpusLink($oid, $link, $name, $tag);
-            }
-        }
-        return $upd;
-    }
-
-    private function saveOpusLink($oid, $link, $name, $tag) {
-        $sql = null;
-
-        if (empty($link)) {
-            //
-        } else if (strpos($link, '/')!==false) {
-            $sql = 'REPLACE into opus_links (oid, name, link, tag)'
-                . ' values(' . $oid .',"'.$name.'","'.$link.'","'.$tag.'")';
-        } else {
-            $sql = 'DELETE from opus_links where oid='.$oid
-                . ' and name="'.$name.'"';
-        }
-
-        if (empty($sql)) {
-            //
-        } else {
-            $this->db->query($sql)->execute()->count();
-        }
-    }
-
     /** return 0 on error, 1 new records, 2 temp, 3 opus, 4 NaN */
     private function test($oid) {
         if (empty($oid)) {
@@ -700,8 +601,11 @@ class DataStorage {
             if (empty($data[$term[0]])) {
                 //
             } else if (substr($term[2],0,7) == 'varchar') {
-                $len = strpos($term[2],')') - strpos($term[2],'('); 
-                $data[$term[0]] = substr($data[$term[0]], $len);
+                $x = strpos($term[2],'(') + 1;
+                $y = strpos($term[2],')',$x);
+                $len = substr($term[2], $x, $y-$x); 
+                $data[$term[0]] = is_numeric($len) ? 
+                    substr($data[$term[0]], 0, $len) : $data[$term[0]];
                 $data[$term[0]] = $this->cleanString($data[$term[0]]);
             } else if ($term[2] == 'text') {
                 $data[$term[0]] = $this->cleanString($data[$term[0]]);
@@ -714,6 +618,8 @@ class DataStorage {
     private function cleanString($text, $length=null) {
         // detect encoding and recode to UTF-8
         $enc = mb_detect_encoding($text);
+        $enc = empty($eng) ? 'UTF-8' : $enc;
+        // $this->log('encoding ['.$enc.']');
         $text = mb_convert_encoding($text, 'UTF-8', $enc);
         // reject overly long 2 byte sequences, as well as characters 
         // above U+10000 and replace with ?
@@ -735,16 +641,12 @@ class DataStorage {
     }
 
     /** return 0 on error, 1 for new created records, 2 for updates */
-    private function saveOne($terms, $data, $upd) {
-        // $type = in_array($table, $coll) ? 'collection' : 'item';
-    }
-
-    /** return 0 on error, 1 for new created records, 2 for updates */
     private function save($terms, $data, $upd) {
         $values = [];
         $params = [];
         $author = [];
         $series = [];
+        $links = [];
         $inst = [];
         $diss = [];
 
@@ -760,6 +662,8 @@ class DataStorage {
                 $diss[$term[0]] = $data[$term[0]];
             } else if (substr($term[0],0,10) == 'opus_inst:') {
                 $inst[$term[0]] = $data[$term[0]];
+            } else if (substr($term[0],0,11) == 'opus_links:') {
+                $links[$term[0]] = $data[$term[0]];
             } else if (substr($term[0],0,20) == 'opus_schriftenreihe:') {
                 $series[$term[0]] = $data[$term[0]];
             }
@@ -768,29 +672,38 @@ class DataStorage {
         $last = end($values);
         $oid = $data['opus:source_opus'];
         $sql = 'UPDATE opus set ';
-        if ($upd==1 || $upd==2) {
+        if ($upd==1) {
+            $sql = 'INSERT into temp set status="neu",';
+        } else if ($upd==2) {
             $sql = 'UPDATE temp set ';
         }
         foreach($values as $v) {
             $sql .= $v.'=?'.($v==$last ? '' : ',');
         }
-        $sql .= ' where source_opus='.$oid;
-        // error_log('GH2023-06 type ['.$data['opus:type'].']');
-        // error_log('GH2023-06 year ['.$data['opus:date_creation'].']');
+        $status = $data['opus:status'];
+        $sql = $upd==1 ? $sql : $sql.' where source_opus='.$oid;
         try {
             $stmt = $this->db->createStatement($sql);
             $stmt->prepare($sql);
             $stmt->execute($params);
+            $this->log('[' . $sql . '] ' . $status);
         } catch (\Exception $ex) {
-            $this->log("DataStorage [" . $sql . "] " . $ex->getMessage());
+            $this->log('[' . $sql . '] ' . $ex->getMessage());
         }
 
+        // $this->log('save [' . $upd . '] ');
         $upd = $this->saveAuthor($author, $oid, $upd); 
+        // $this->log('saveAuthor [' . $upd . '] ');
         $upd = $this->saveInst($inst, $oid, $upd); 
+        // $this->log('saveInst [' . $upd . '] ');
         $upd = $this->saveDiss($diss, $oid, $upd); 
+        // $this->log('saveDiss [' . $upd . '] ');
         $upd = $this->saveSeries($series, $oid, $upd);
+        // $this->log('saveSeries [' . $upd . '] ');
         $upd = $this->saveCollection($data['opus_coll:coll_id'], $oid, $upd);
-        // $upd = $this->saveLinks($oid, $data, $upd);
+        // $this->log('saveColls [' . $upd . '] ');
+        $upd = $this->saveLinks($links, $oid, $upd);
+        // $this->log('saveLinks [' . $upd . '] ');
         return $upd;
     }
 
@@ -800,15 +713,10 @@ class DataStorage {
         $authids = $data['opus_autor:authorid'] ?? [];
         $count = 0;
 
-        if ($upd==1) {
-            $sql = 'REPLACE INTO temp_autor';
-        } else if ($upd==2) {
-	        $sql = 'REPLACE INTO temp_autor';
-        } else if ($upd==3) {
-	        $sql = 'REPLACE INTO opus_autor'; 
-        } else {
-            return 0;
-        }
+	    $sql = 'REPLACE INTO opus_autor'; 
+        if ($upd==2 || $upd==1) {
+            $sql = str_replace('opus_', 'temp_', $sql);
+        } 
         $sql .= ' (creator_name, reihenfolge, source_opus, orcid, gnd)';
         $sql .= ' VALUES (?,?,?,?,?)';
 
@@ -816,24 +724,23 @@ class DataStorage {
         $stmt->prepare($sql);
         foreach($authors as $autor) {
             $aid = $authids[$count++] ?? null;
-            // $this->log('aut [' . $autor . '] ' . $aid);
             $orc = null;
             $gnd = null;
             if (empty($aid)) {
-                // Nothing
+                // 
             } else if (strpos($aid, '-') !== false) {
                 $orc = mb_substr($aid, strlen($aid)-19);
             } else {
                 $gnd = mb_substr($aid, strlen($aid)-19);
             }
-            $stmt->execute([$autor, $count, $oid, $orc, $gnd]);
+            if (empty($autor)) {
+                $del = 'DELETE from opus_autor where source_opus='.$oid
+                . ' and reihenfolge='.($count);
+                $res = $this->db->query($del)->execute();
+            } else {
+                $stmt->execute([$autor, $count, $oid, $orc, $gnd]);
+            }
         }
-        $sql = 'DELETE from opus_autor where source_opus='.$oid
-            . ' and reihenfolge>'.($count);
-        if ($upd==2) {
-            $sql = str_replace('opus_', 'temp_', $sql);
-        } 
-        $res = $this->db->query($sql)->execute();
         return $upd;
     }
 
@@ -860,12 +767,8 @@ class DataStorage {
         $sql .= ' VALUES (?,?,?)';
         $advisor = $data['opus_diss:advisor'] ?? null;
         $accepted = $data['opus_diss:date_accepted'] ?? null;
-        if (!empty($advisor) && !empty($accepted)) try {
-            $stmt = $this->db->createStatement($sql);
-            $stmt->prepare($sql);
-            $stmt->execute([$oid, $accepted, $advisor]);
-        } catch (\Exception $ex) {
-            $this->log(' [' . $sql . '] ' . $ex->getMessage());
+        if (!empty($advisor) && !empty($accepted)) {
+            $count = $this->execute($sql, [$oid, $accepted, $advisor]);
         }
         return $upd;
     }
@@ -874,64 +777,110 @@ class DataStorage {
         $sid = $data['opus_schriftenreihe:sr_id'] ?? null;
         $vol = $data['opus_diss:sequence_nr'] ?? null;
         $sql = 'INSERT INTO opus_schriftenreihe ';
-        $upd = 'DELETE FROM opus_schriftenreihe where source_opus='.$oid;
+        // $sql = 'DELETE FROM opus_schriftenreihe where source_opus='.$oid;
 
         if ($upd==1 || $upd==2) {
             $sql = str_replace('opus_','temp_',$sql);
         }
 
-        if ($upd==1 && empty($sid)) {
-            // Nothing
-        } else if ($upd==2 && empty($sid)) {
-            $res = $this->db->query($upd)->execute()->count();
-        } else if ($upd==3 && empty($sid)) {
-            $res = $this->db->query($upd)->execute();
-        } else {
+        if (!empty($sid)) {
+            $this->log('saveSeries ' . $oid . ' ' . $upd);
             $sql .= ' (source_opus,sr_id,sequence_nr) VALUES (?,?,?)';
             $sql .= ' ON DUPLICATE KEY UPDATE sr_id='.$sid;
             $sql .= ' ,sequence_nr="'.$vol.'"'; 
-            $stmt = $this->db->createStatement($sql);
-            $stmt->prepare($sql);
-            $stmt->execute([$oid, $sid, $vol]);
+            $count = $this->execute($sql, [$oid, $sid, $vol]);
         }
         return $upd;
+    }
+
+    private function execute($sql, $params=[]) {
+        $count = 0;
+        $stmt = $this->db->createStatement($sql);
+        $stmt->prepare($sql);
+        try {
+            $count = $stmt->execute($params)->count();
+        } catch (\Exception $ex) {
+            $this->log(' ['.$sql.']['.join($params).'] '.$ex->getMessage());
+        }
+        return $count;
     }
 
     private function saveCollection($data, $oid, $upd) {
-        $sql = 'REPLACE INTO opus_coll (source_opus,coll_id) VALUES (?,?)';
-        if ($upd==1 || $upd==2) {
-            $sql = str_replace('opus_','temp_',$sql);
-        }
+        $res = 0;
+        // $this->log('saveCollection ' . $oid . ' ' . $upd);
 
         foreach($data as $key => $val) {
-            if (empty($val)) {
-                $upd = 'DELETE from opus_coll where source_opus='.$oid;
-                $res = $this->db->query($upd)->execute()->count();
+            if (empty($val) && !empty($key)) {
+                $sql = 'DELETE from opus_coll where source_opus=?';
+                $count = $this->execute($sql, [$oid]);
+                $this->log('collection del '.$key.' ['.$val.'] '.$res);
+                break;
             }
         }
 
+        $sql = 'REPLACE INTO opus_coll (source_opus, coll_id) VALUES (?,?)';
+        if ($upd==1 || $upd==2) {
+            $sql = str_replace('opus_','temp_',$sql);
+        }
         $stmt = $this->db->createStatement($sql);
         $stmt->prepare($sql);
         foreach($data as $key => $val) {
-            $res = empty($val) ? 0 : $stmt->execute([$oid, $val])->count();
-            $this->log('collection key '.$key.' ['.$val.'] '.$res);
+            if (empty($val)) {
+                // 
+            } else {
+                $res = $stmt->execute([$oid, $val])->count();
+                $this->log('collection key '.$key.' ['.$val.'] '.$res);
+            }
+        }
+        return $upd;
+    }
+
+    // published records can have additional links 
+    private function saveLinks($data, $oid, $upd) {
+        if ($upd!==3) {
+            return $upd;
+        }
+
+        $tags = $data['opus_links:tag'] ?? [];
+        $links = $data['opus_links:link'] ?? [];
+        $count = 0;
+        foreach($tags as $key => $val) {
+            $link = $links[$count++];
+            if (empty($tag)) {
+                continue;
+            }
+            $name = $tag=='desc' ? 'Bibliographic Details' : 'Research data';
+            $this->saveOpusLink($oid, $link, $name, $key);
+            $this->log('link key '.$key.' ['.$val.'] '.$link);
         }
 
         return $upd;
     }
 
-    private function copyFiles($data) {
-        $oid = $data['opus:source_opus'];
-        $files = $data['opus:files'];
+    private function saveOpusLink($oid, $link, $name, $tag) {
+        $sql = null;
 
-        $year = date('Y');
-        if (!empty($files[0]['path'])) { 
-            // PHP 7: $year = basename(dirname($files[0]['path'],3));
-            $year = basename(dirname(dirname(dirname($files[0]['path']))));
+        if (empty($link)) {
+            //
+        } else if (strpos($link, '/')!==false) {
+            $sql = 'REPLACE into opus_links (oid, name, link, tag)'
+                . ' values(' . $oid .',"'.$name.'","'.$link.'","'.$tag.'")';
+        } else {
+            $sql = 'DELETE from opus_links where oid='.$oid
+                . ' and name="'.$name.'"';
         }
-        $source = $this->path . $this->temp . $year . '/' . $oid;
-        $auto = $this->path . $this->auto . $year . '/' . $oid;
-        $target = $this->path . '/' . $year . '/' . $oid;
+
+        if (empty($sql)) {
+            //
+        } else {
+            $this->db->query($sql)->execute()->count();
+        }
+    }
+
+    private function copyFiles($oid) {
+        $year = date('Y');
+        $source = $this->path.$this->docbase.$this->temp.$year.'/'.$oid;
+        $target = $this->path.$this->docbase.'/'. $year.'/'.$oid;
         $docbase = $this->docbase . '/' . $year . '/' . $oid;
 
 		if (!file_exists(dirname($target))) {
@@ -939,21 +888,17 @@ class DataStorage {
         }
 		if (file_exists($source)) {
             rename($source, $target); // move from temp to opus area
-        } else if (file_exists($auto)) {
-            // GH201711 -- recursive copy instead ?
-            // rename($auto, $target); // move from temp to opus area
         }
 
-        $count = 0;
+        $files = $this->readFiles($oid);
+
         foreach($files as $file) {
             $sql = 'INSERT into opus_files (oid, name)' 
                  . ' values (' . $oid . ',"' . $file['name'] . '")'
                  . ' ON DUPLICATE KEY UPDATE name="'.$file['name'].'"';
             $res = $this->db->query($sql)->execute();
-            $files[$count]['path'] = $target.'/'.$file['name'];
-            $files[$count]['url'] = $docbase.'/'.$file['name'];
-            $count++;
         }
+        $this->log('copy ['.$source.'] to ['.$target.']');
         return $files;
     }
 
