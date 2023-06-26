@@ -31,7 +31,7 @@ use Laminas\Http\Client;
 
 class DbibIndex {
 
-    var $dev = false;
+    var $dev = true;
 
     var $db;
     var $solr;     // solr core
@@ -48,13 +48,13 @@ class DbibIndex {
     }
 
     /** read xml, lift to rdf and transform to solr */
-    public function index($oid, $files = []) {
-        $doc = $this->getDbibDocument($oid, $files);
+    public function index($oid, $url) {
+        $doc = $this->getDbibDocument($oid, $url);
         if ($this->dev) {
             $doc->formatOutput = true;
             $out = LOCAL_CACHE_DIR.'/dbib-'.$oid.'.xml';
             $doc->save($out);
-            $this->log('Cached to ' . $out);
+            $this->log('Cached to ' . $out . ' ['.$url.']');
         }
         $rdf = $this->transformToDoc($doc, $this->rdfxslt);
         $data = $this->transformToXml($rdf, $this->solrxslt);
@@ -74,23 +74,12 @@ class DbibIndex {
       * rewrite to support local streaming if uid is like that
       * return DOMDocument
       */
-    private function getDbibDocument($oid, $files = []) {
-        $url = null; 
+    private function getDbibDocument($oid, $url) {
         $queries = '';
         $queries = file_get_contents($this->getFile($this->about));
 
         $queries = str_replace('<oid>', $oid, $queries);
         $query = explode(';', $queries);
-
-        if (empty($files)) {
-            $this->log('Zero files');
-        } else {
-            // file_put_contents('data/dbib-'.$oid.'.json',json_encode($files));
-            $path = $files[0]['path'];
-            $len = strlen($path) - strlen($files[0]['name']) -1;
-            $url = 'file://'.substr($path, 0, $len);
-            $this->log('File URL ['.$url.']');
-        }
 
         $doc = new DOMDocument('1.0', 'utf-8');
         $root = $doc->createElement('document');
@@ -103,7 +92,6 @@ class DbibIndex {
             if ($result->count()==0) continue;
             $table = $root->appendChild($doc->createElement('resultset'));
             $table->setAttribute('table', $name);
-            $durl = null; // domain URL
             for ($i=0; $i<$result->count(); $result->next(), $i++) {
                 $row = $table->appendChild($doc->createElement('row'));
                 $data =  $result->current();
@@ -115,7 +103,8 @@ class DbibIndex {
                     }
                     $field = $row->appendChild($doc->createElement('field')); 
                     $field->setAttribute('name', $key);
-                    $field = $field->appendChild($doc->createTextNode($val)); 
+                    $node = $doc->createTextNode(trim($val));
+                    $field = $field->appendChild($node); 
                 }
             }
         }

@@ -50,6 +50,8 @@ class DCTerms {
             ['opus_publications:urn', 'URN', 'varchar(40)', 0],
             ['opus_domain:url', 'URL', 'varchar(255)', 0],
             ['opus:date_modified', 'Modification Date', 'date', 0],
+            ['opus:bereich_id', 'Range', 'int', 0],
+            ['spec:temp', 'Book Bag', 'varchar(20)', 0],
 
             ['opus:type', 'Document Type',
                 'SELECT typeid type, type label FROM resource_type', 1, ' '],

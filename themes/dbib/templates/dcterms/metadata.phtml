@@ -221,10 +221,10 @@ echo $this->form()->openTag($form);
 
 <?php if ($form->page==1) {
         // error_log('Page one file summary');
-	    $uid = $form->get('opus_publications:uid')->getValue();
-	    // $url = $form->get('opus_domain:url')->getValue();
 	    echo '<div class="form-element col-sm-9"><br/>';
 		echo '<table class="table table-sm table-striped table-bordered">';
+        $uid = $form->get('opus_publications:uid')->getValue();
+        $uid = $uid ?: $form->get('spec:temp')->getValue();
         $i = 0;
         if (empty($form->files)) {
             //

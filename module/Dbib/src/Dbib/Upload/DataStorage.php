@@ -115,15 +115,19 @@ class DataStorage {
             }
         }
 
-        if (empty($data['opus_files:name'])) {
+        // if (empty($data['opus_files:name'])) {
+        if (empty($data['opus_publications:uid'])) {
+            $data['opus_files:name'] = []; // read filesys
             $files = $this->readFiles($oid);
             $uid = $files[0]['uid'] ?? ''; 
             foreach($files as $file) {
                 $data['opus_files:name'][] = $file['name']; 
                 $data['opus:date_modified'] = $file['time']; 
             }
-            $data['opus_publications:uid'] = $uid;
             // $this->log('file base [' . $uid . ']'); 
+            // $data['opus_publications:uid'] = $uid;
+            $data['spec:temp'] = $uid;
+            $data['opus_domain:url'] = 'file://'.$this->path . '/' . $uid;
         }
         return $data;
     }
@@ -142,6 +146,7 @@ class DataStorage {
             $this->log("Storage form save : empty submission");
         } else if (empty($oid)) { // metadata only, no oid created until now
             $data['opus:source_opus'] = $this->getIdentifier();
+            $data['opus:bereich_id'] = $this->domain ?: 1;
             $this->writeLog($data); // never happens
             $upd = $this->save($terms, $data, 1);
             $this->log("Storage created late: " . $data['opus:source_opus']);
@@ -153,12 +158,11 @@ class DataStorage {
             }
             $upd = $this->save($terms, $data, $upd);
         }
-        // error_log('DataStorage save ' . $oid . ' ['.$upd.']');
         return $upd;
     }
 
     /** copy from temp to opus */
-    public function copy($data, $uid = null) {
+    public function copy($data) {
         $oid = $data['opus:source_opus'];
         $upd = $this->test($oid);
         // test returns 0: error, 1: new record, 2: temp, 3: opus
@@ -168,8 +172,9 @@ class DataStorage {
         } else if ($upd==3) { 
             // update publications
             $urn = $data['opus_publications:urn'];
-            $this->publish($oid, $uid, $urn);
-            return $this->readFiles($oid);
+            $uid = $data['opus_publications:uid'] ?: $data['opus:status'];
+            $res = $this->publish($oid, $uid, $urn);
+            return $res ? $upd : 0;
         } else {
             return false;
         }
@@ -214,8 +219,8 @@ class DataStorage {
         $this->remove($oid);
 
         $files = $this->copyFiles($oid);
-        $this->cover($files);
-        return $files; // return $files to directly index this record 
+        $this->cover($files, $data['opus_domain:url']);
+        return $upd; 
     }
   
     /** Rename a file and return updated file array */
@@ -362,12 +367,13 @@ class DataStorage {
 
         $year = date('Y');
         for ($i=4; $i>0 && !file_exists($path); $i--, $year--) {
+            // $this->log('read file ' . $path);
             $uid = $this->docbase . '/' . $year . '/' . $oid;
             $path = $this->path . $uid;
         }
 
         if (file_exists($path)) {
-            // $this->log('read files ' . $path);
+            // 
         } else {
             return $data;
         }
@@ -485,7 +491,7 @@ class DataStorage {
                 }
             }
         } catch (\Exception $ex) {
-            $this->log("DataStorage [" . $sql . "] " . $ex->getMessage());
+            $this->log("failed [" . $sql . "] " . $ex->getMessage());
         }
 
         return $data;
@@ -510,11 +516,12 @@ class DataStorage {
     /** Copy back from opus to temp */
     private function unpublish($oid) {
         $year = date('Y');
-        $source = $this->path . $this->docbase . '/' . $year . '/' . $oid;
-        $target = $this->path . $this->temp . $year . '/' . $oid;
+        $source = $this->path.$this->docbase.'/'. $year.'/'.$oid;
+        $target = $this->path.$this->docbase.$this->temp.$year.'/'.$oid;
 		if (file_exists($source) && file_exists($target)) {
             // both exists -- skip hard delete
         } else if (file_exists($source)) {
+            // $this->log('move '.$source.' to '.$target);
             rename($source, $target); // move from opus to temp area
         }
 
@@ -545,7 +552,7 @@ class DataStorage {
         $sql = 'delete from opus where source_opus='.$oid;
         $res = $this->db->query($sql)->execute();
         if (empty($res)) {
-            $this->log('FATAL: unpublish failed ['.$oid.']');
+            $this->log('unpublish failed ['.$oid.']');
         } else {
             $this->log('unpublish ['.$oid.'] '.$source.' '.$target);
         }
@@ -553,10 +560,11 @@ class DataStorage {
 
     /** update publications table with new uid */
     private function publish($oid, $uid, $urn = null) {
+        $res = 0;
         $sql = 'INSERT into opus_publications (oid, uid, date)'
             . ' values ('. $oid .',"'. $uid .'", now())'
             . ' ON DUPLICATE KEY UPDATE date=now()';
-        if (empty($urn) && !empty($this->urn_prefix)) {
+        if (empty($urn) && !empty($this->urn_prefix) && !empty($uid)) {
             $urn = $this->createURN($uid);
             $sql = 'INSERT into opus_publications (oid, uid, urn, date)'
                 . ' values ('. $oid .',"'. $uid .'", "'. $urn .'",'. 'now())'
@@ -570,11 +578,11 @@ class DataStorage {
         } else if (substr_count($uid,'/')==2) {
             $this->log('publications: ' . $oid . ' ' . $uid);
             // $this->log('[' . $sql . ']');
-            $res = $this->db->query($sql)->execute();
+            $res = $this->db->query($sql)->execute()->count();
         } else {
             $this->log('publications: bad uid ' . $oid . ' ' . $uid);
         }
-
+        return $res;
     }
 
     /** return 0 on error, 1 new records, 2 temp, 3 opus, 4 NaN */
@@ -686,9 +694,9 @@ class DataStorage {
             $stmt = $this->db->createStatement($sql);
             $stmt->prepare($sql);
             $stmt->execute($params);
-            $this->log('[' . $sql . '] ' . $status);
+            // $this->log('[' . $sql . '] ' . $status);
         } catch (\Exception $ex) {
-            $this->log('[' . $sql . '] ' . $ex->getMessage());
+            $this->log('failed [' . $sql . '] ' . $ex->getMessage());
         }
 
         // $this->log('save [' . $upd . '] ');
@@ -800,7 +808,7 @@ class DataStorage {
         try {
             $count = $stmt->execute($params)->count();
         } catch (\Exception $ex) {
-            $this->log(' ['.$sql.']['.join($params).'] '.$ex->getMessage());
+            $this->log('failed ['.$sql.':'.join($params).'] '.$ex->getMessage());
         }
         return $count;
     }
@@ -883,10 +891,11 @@ class DataStorage {
         $target = $this->path.$this->docbase.'/'. $year.'/'.$oid;
         $docbase = $this->docbase . '/' . $year . '/' . $oid;
 
-		if (!file_exists(dirname($target))) {
-			mkdir($target, 0755, true);
-        }
+		// if (!file_exists(dirname($target))) {
+		// 	mkdir($target, 0755, true);
+        // }
 		if (file_exists($source)) {
+		 	// mkdir($target, 0755, true);
             rename($source, $target); // move from temp to opus area
         }
 
@@ -902,28 +911,30 @@ class DataStorage {
         return $files;
     }
 
-    private function cover($files) {
-        if (empty($files) | empty($files[0]['path'])) {
+    private function cover($files, $url) {
+        $this->log('Cover ' . ($url??'YY').($files[0]['name']??'XX'));
+        if (empty($files) || empty($url)) {
             return;
         }
         if (!extension_loaded('imagick')) {
              $this->log('No imagick, no cover');
              return;
         }
+        $path = substr(url,0,7)=='file://' ? substr($url, 7) : $url;
         $source = null;
         $count = 0;
         foreach ($files as $file) {
             if (substr($file['name'],-4)=='.png' && $count==0) {
-                $source = $file['path']; // first png
+                $source = $path . '/' . $file['name']; // first png
             } else if ($source==null && substr($file['name'],-4)=='.pdf') {
-                $source = $file['path'];  // first pdf 
+                $source = $path . '/' . $file['name']; // first pdf
             }
             $count++;
         }
 		if ($source!=null && file_exists($source)) {
             $target = dirname(dirname($source)).'/cover.png';
-            if (file_exists($target)) {
-                // Nothing
+            if (false && file_exists($target)) {
+                // 
             } else {
                 $im = new \Imagick($source.'[0]');
                 $im->setIteratorIndex(0);

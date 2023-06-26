@@ -97,7 +97,7 @@ class MetaForm extends Form
         $this->get('spec:page')->setValue($this->page);
 
         $time = $post['opus:date_modified'] ?? date('Y-m-d');
-        $this->files = $this->getFiles($post['opus_files:name']??[], $time);
+        $this->files = $this->getFiles($post['opus_files:name']?:[], $time);
         return $this;
     }
 
@@ -117,22 +117,16 @@ class MetaForm extends Form
             // $this->log('process page '.$this->page.'/'.$this->end);
         }
 
-        $oid = $post['opus:source_opus'] ?? 0;
+        $oid = $post['opus:source_opus'] ?: 0;
 		if (isset($post['publish'])) {
-            $uid = $post['opus_publications:uid'] ?: $post['opus:status'];
             if (empty($this->admin)) {
-                // Nothing
-            } else if (empty($uid)) {
-                $this->log(' publish one [' . $oid .']');
-                $this->files = $this->getStorage()->copy($post);
+                // 
             } else {
-                $this->log(' publish two [' . $uid .'] '. $oid);
-                $this->files = $this->getStorage()->copy($post, $uid);
-                if (substr_count($uid,'/')==2) {
-                    $this->getIndexer()->index($oid, $this->files);
-                    $this->log('Index '.$oid.' '.$uid);
-                } else {
-                    $this->log('Invalid uid, no index update');
+                $upd = $this->getStorage()->copy($post);
+                $this->log('publish ' . $upd);
+                if ($upd==3) {
+                    $url = $post['opus_domain:url'];
+                    $this->getIndexer()->index($oid, $url);
                 }
             }
             return true;
@@ -191,7 +185,7 @@ class MetaForm extends Form
 		$data = $this->getStorage()->read($oid, $this->colls);
 
         // remap some values
-        $data['opus:type'] = $data['opus:typeid'];
+        $data['opus:type'] = $data['opus:typeid'] ?? 0;
         unset($data['opus:typeid']);
         $data['faculty:nr'] = $data['opus:faculty'] ?? '';
         unset ($data['opus:faculty']);
